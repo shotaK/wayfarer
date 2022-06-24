@@ -2,7 +2,6 @@
   "name": "wayfarer",
   "version": "0.1.0",
   "description": "Website keyboard navigation mapper",
-  "main": "index.ts",
   "scripts": {
     "start:dev": "nodemon",
     "build": "rimraf ./build && tsc",

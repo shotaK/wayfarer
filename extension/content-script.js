@@ -1,3 +1,4 @@
+console.log("Wayfarer loading");
 (function () {
     console.log("clock");
     // document.addEventListener("load", function () {
@@ -52,20 +53,25 @@
         hintMarker.style.left = "".concat(leftPos, "px");
         return hintMarker;
     };
+    var isElementInViewport = function (el) {
+        var rect = el.getBoundingClientRect();
+        return (rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <=
+                (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth));
+    };
     var getAllHyperlinks = function () {
-        return Array.from(document.querySelectorAll("a")).filter(isVisible);
+        return Array.from(document.querySelectorAll("a"))
+            .filter(isVisible)
+            .filter(isElementInViewport);
     };
     var getCoords = function (elem) {
-        var box = elem.getBoundingClientRect();
-        var body = document.body;
-        var docEl = document.documentElement;
-        var scrollTop = window.scrollY || docEl.scrollTop || body.scrollTop;
-        var scrollLeft = window.scrollY || docEl.scrollLeft || body.scrollLeft;
-        var clientTop = docEl.clientTop || body.clientTop || 0;
-        var clientLeft = docEl.clientLeft || body.clientLeft || 0;
-        var top = box.top + scrollTop - clientTop;
-        var left = box.left + scrollLeft - clientLeft;
-        return { top: Math.round(top), left: Math.round(left) };
+        var rect = elem.getBoundingClientRect();
+        return {
+            left: rect.left + window.scrollX,
+            top: rect.top + window.scrollY
+        };
     };
     var renderHintMarkers = function (hintMarkerContainer) {
         getAllHyperlinks().forEach(function (hyperlink, index) {

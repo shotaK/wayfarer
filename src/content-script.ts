@@ -1,3 +1,5 @@
+console.log("Wayfarer loading");
+
 (function () {
   console.log("clock");
   // document.addEventListener("load", function () {
@@ -71,26 +73,30 @@
     return hintMarker;
   };
 
+  const isElementInViewport = (el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+
+    return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <=
+        (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  };
+
   const getAllHyperlinks = () => {
-    return Array.from(document.querySelectorAll("a")).filter(isVisible);
+    return Array.from(document.querySelectorAll("a"))
+      .filter(isVisible)
+      .filter(isElementInViewport);
   };
 
   const getCoords = (elem: HTMLElement) => {
-    const box = elem.getBoundingClientRect();
-
-    const body = document.body;
-    const docEl = document.documentElement;
-
-    const scrollTop = window.scrollY || docEl.scrollTop || body.scrollTop;
-    const scrollLeft = window.scrollY || docEl.scrollLeft || body.scrollLeft;
-
-    const clientTop = docEl.clientTop || body.clientTop || 0;
-    const clientLeft = docEl.clientLeft || body.clientLeft || 0;
-
-    const top = box.top + scrollTop - clientTop;
-    const left = box.left + scrollLeft - clientLeft;
-
-    return { top: Math.round(top), left: Math.round(left) };
+    const rect = elem.getBoundingClientRect();
+    return {
+      left: rect.left + window.scrollX,
+      top: rect.top + window.scrollY,
+    };
   };
 
   const renderHintMarkers = (hintMarkerContainer: HTMLDivElement) => {
