@@ -8,44 +8,37 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     return to.concat(ar || Array.prototype.slice.call(from));
 };
 (function () {
-    // document.addEventListener("load", function () {
     var hintsActivated = false;
+    var hintFirstActivatedKey;
     var HINT_MARKER_CONTAINER_CLASSNAME = "wayfarer-hint-marker-container";
     var HINT_MARKER_CLASSNAME = "wayfarer-hint-marker";
-    var ENGLISH_LETTERS_AMOUNT = 26;
-    // const WAYFARER_TYPING_INPUT = "wayfarer-typing-input";
-    // const createTypingInput = (): HTMLInputElement => {
-    //   const typingInput = document.createElement("input");
-    //   typingInput.type = "hidden";
-    //   typingInput.setAttribute("name", "wayfarer-typing-input");
-    //   typingInput.classList.add(WAYFARER_TYPING_INPUT);
-    //   document.body.appendChild(typingInput);
-    //   return typingInput;
-    // };
-    // const focusToTypingInput = (typingInput: HTMLInputElement): void => {
-    //   if (typingInput) {
-    //     typingInput.focus();
-    //   }
-    // };
-    // const listenToTypingInput = (typingInput: HTMLInputElement): void => {
-    //   console.log(typingInput);
-    //   if (typingInput) {
-    //     typingInput.addEventListener("input", (e) => {
-    //       console.log("input", e);
-    //       e.preventDefault();
-    //       e.stopPropagation();
-    //     });
-    //   }
-    // };
+    var HINT_MARKER_CLASSNAME_PREFIX = "wayfarer-hint-marker-prefix";
+    var HINT_MARKER_CLASSNAME_POSTFIX = "wayfarer-hint-marker-postfix";
+    var ALPHABET_ENGLISH_KEY_OPTIMIZED = "abcdehijklmnopqrsuvwxyztgf";
+    var ENGLISH_LETTERS_AMOUNT = ALPHABET_ENGLISH_KEY_OPTIMIZED.length;
+    var SINGLE_DIGIT_NUM_AMOUNT = 10;
+    var MAX_ALPHA_HINT_AMOUNT = 676;
     var createHintMarkerContainer = function () {
         var hintMarkerContainer = document.createElement("div");
         hintMarkerContainer.classList.add(HINT_MARKER_CONTAINER_CLASSNAME);
         return hintMarkerContainer;
     };
+    var removeAllHintMarkerContainer = function () {
+        document
+            .querySelectorAll(".".concat(HINT_MARKER_CONTAINER_CLASSNAME))
+            .forEach(function (el) { return el.remove(); });
+    };
     var loadHintMarkerContainer = function () {
         var hintMarkerContainer = createHintMarkerContainer();
         document.body.appendChild(hintMarkerContainer);
         return hintMarkerContainer;
+    };
+    var createHintMarkerKey = function (_a) {
+        var key = _a.key, className = _a.className;
+        var hintMarkerKey = document.createElement("span");
+        hintMarkerKey.classList.add(className);
+        hintMarkerKey.innerText = key;
+        return hintMarkerKey;
     };
     var isVisible = function (element) {
         return (element.offsetWidth > 0 ||
@@ -56,7 +49,19 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         var markKey = _a.markKey, topPos = _a.topPos, leftPos = _a.leftPos;
         var hintMarker = document.createElement("div");
         hintMarker.classList.add(HINT_MARKER_CLASSNAME);
-        hintMarker.innerText = markKey;
+        var prefixKey = markKey[0], postfixKey = markKey[1];
+        var prefixElement = createHintMarkerKey({
+            key: prefixKey,
+            className: HINT_MARKER_CLASSNAME_PREFIX
+        });
+        hintMarker.appendChild(prefixElement);
+        if (postfixKey) {
+            var postfixElement = createHintMarkerKey({
+                key: postfixKey,
+                className: HINT_MARKER_CLASSNAME_POSTFIX
+            });
+            hintMarker.appendChild(postfixElement);
+        }
         hintMarker.style.top = "".concat(topPos, "px");
         hintMarker.style.left = "".concat(leftPos, "px");
         return hintMarker;
@@ -81,76 +86,124 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             top: rect.top + window.scrollY
         };
     };
-    var getAlphaKeys = function (amount) {
-        return "abcdefghijklmnopqrstuvwxyz".split("").slice(0, amount);
+    var getAlphaKeys = function (_a) {
+        var _b = _a.start, start = _b === void 0 ? 0 : _b, _c = _a.end, end = _c === void 0 ? ENGLISH_LETTERS_AMOUNT : _c;
+        return ALPHABET_ENGLISH_KEY_OPTIMIZED.split("").slice(start, end);
     };
-    var generateAlphaHintMarks = function (alphaHintsTotal) {
-        var totalExtraChunks = Math.ceil(alphaHintsTotal / ENGLISH_LETTERS_AMOUNT) - 1;
-        if (ENGLISH_LETTERS_AMOUNT >= alphaHintsTotal) {
-            return getAlphaKeys(alphaHintsTotal);
-        }
-        var initialChunk = getAlphaKeys(ENGLISH_LETTERS_AMOUNT - totalExtraChunks);
-        var extraHintKeysTotal = alphaHintsTotal - ENGLISH_LETTERS_AMOUNT;
-        Array(extraHintKeysTotal)
+    var getChunkNumberByTotal = function (total) {
+        return Math.ceil(total / ENGLISH_LETTERS_AMOUNT) - 1;
+    };
+    var generateExtraHintKeys = function (extraHintKeysTotal) {
+        return Array(extraHintKeysTotal <= MAX_ALPHA_HINT_AMOUNT
+            ? extraHintKeysTotal
+            : MAX_ALPHA_HINT_AMOUNT)
             .fill(0)
             .map(function (_, index) {
+            var currentChunkPrefixLetter = ALPHABET_ENGLISH_KEY_OPTIMIZED[ENGLISH_LETTERS_AMOUNT - getChunkNumberByTotal(index + 1) - 1];
+            return "".concat(currentChunkPrefixLetter).concat(ALPHABET_ENGLISH_KEY_OPTIMIZED[index % ENGLISH_LETTERS_AMOUNT]);
         });
     };
-    console.log(generateAlphaHintMarks(89));
+    var generateAlphaHintMarks = function (alphaHintsTotal) {
+        if (!alphaHintsTotal) {
+            return [];
+        }
+        var initialChucks = getAlphaKeys({ end: alphaHintsTotal });
+        if (ENGLISH_LETTERS_AMOUNT >= alphaHintsTotal) {
+            return initialChucks;
+        }
+        var extraChunksAmount = getChunkNumberByTotal(alphaHintsTotal);
+        var initialChunksRefined = getAlphaKeys({
+            end: ENGLISH_LETTERS_AMOUNT - extraChunksAmount
+        });
+        var extraHintKeysTotal = alphaHintsTotal - initialChunksRefined.length;
+        var extraChunksKeys = generateExtraHintKeys(extraHintKeysTotal);
+        return __spreadArray(__spreadArray([], getAlphaKeys({ end: ENGLISH_LETTERS_AMOUNT - extraChunksAmount }), true), extraChunksKeys, true);
+    };
     var generateHintKeys = function (totalHints) {
         if (!totalHints) {
             return [];
         }
-        var firstTenHintKeys = Array.from(Array(totalHints > 10 ? 10 : totalHints), function (d, i) { return String(i); });
-        if (totalHints <= 10) {
+        var firstTenHintKeys = Array.from(Array(totalHints > SINGLE_DIGIT_NUM_AMOUNT
+            ? SINGLE_DIGIT_NUM_AMOUNT
+            : totalHints), function (d, i) { return String(i); });
+        if (totalHints <= SINGLE_DIGIT_NUM_AMOUNT) {
             return firstTenHintKeys;
         }
-        if (totalHints <= 36) {
-            return __spreadArray(__spreadArray([], firstTenHintKeys, true), getAlphaKeys(totalHints - 10), true);
-        }
-        if (totalHints <= 61) {
-            return __spreadArray(__spreadArray([], firstTenHintKeys, true), "abcdefghijklmnopqrstuvwxyz".split("").slice(0, totalHints - 10), true);
-        }
+        return __spreadArray(__spreadArray([], firstTenHintKeys, true), generateAlphaHintMarks(totalHints - SINGLE_DIGIT_NUM_AMOUNT), true);
     };
-    // console.log(generateHintKeys(36));
-    var renderHintMarkers = function (hintMarkerContainer) {
-        getAllHyperlinks().forEach(function (hyperlink, index) {
+    var renderHintMarkers = function (_a) {
+        var renderPredicate = _a.renderPredicate;
+        var hintMarkerContainer = loadHintMarkerContainer();
+        var allHyperlinks = getAllHyperlinks();
+        var hintKeys = generateHintKeys(allHyperlinks.length);
+        allHyperlinks.forEach(function (hyperlink, index) {
             var coords = getCoords(hyperlink);
             if (hintMarkerContainer) {
                 var hintMarker = createHintMarker({
-                    markKey: index.toString(),
+                    markKey: hintKeys[index],
                     topPos: coords.top,
                     leftPos: coords.left
                 });
+                if (renderPredicate) {
+                    if (renderPredicate({ hintKey: hintKeys[index] })) {
+                        hintMarkerContainer.appendChild(hintMarker);
+                    }
+                    return;
+                }
                 hintMarkerContainer.appendChild(hintMarker);
+            }
+        });
+    };
+    var dismissHints = function () {
+        removeAllHintMarkerContainer();
+    };
+    var activateThePrefixKey = function (_a) {
+        var prefixKey = _a.prefixKey;
+        hintFirstActivatedKey = prefixKey;
+        removeAllHintMarkerContainer();
+        renderHintMarkers({
+            renderPredicate: function (_a) {
+                var hintKey = _a.hintKey;
+                return true;
             }
         });
     };
     document.addEventListener("keydown", function (event) {
         var _a;
-        if (hintsActivated) {
-            if (event.key === "Escape") {
-                hintsActivated = false;
-            }
-            else {
-                var hyperlink = getAllHyperlinks()[Number(event.key)];
-                var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
-                if (href) {
-                    (_a = window.open(href, "_blank")) === null || _a === void 0 ? void 0 : _a.focus();
+        var chosenHintKey = event.key;
+        if (!hintsActivated) {
+            if (chosenHintKey === "f") {
+                var allHyperlinks_1 = getAllHyperlinks();
+                if (allHyperlinks_1.length > 0) {
+                    renderHintMarkers({});
+                    hintsActivated = true;
                 }
             }
+            return;
         }
-        if (event.key === "f") {
-            var allHyperlinks = getAllHyperlinks();
-            if (allHyperlinks.length > 0) {
-                var hintMarkerContainer = loadHintMarkerContainer();
-                renderHintMarkers(hintMarkerContainer);
-                hintsActivated = true;
-                // const typingInput = createTypingInput();
-                // focusToTypingInput(typingInput);
-                // listenToTypingInput(typingInput);
+        if (chosenHintKey === "Escape") {
+            hintsActivated = false;
+            dismissHints();
+            return;
+        }
+        var allHyperlinks = getAllHyperlinks();
+        if (hintFirstActivatedKey) {
+        }
+        var selectedHintIndex = generateHintKeys(allHyperlinks.length).findIndex(function (hintKey) { return hintKey === chosenHintKey; });
+        if (selectedHintIndex === -1) {
+            activateThePrefixKey({ prefixKey: chosenHintKey });
+        }
+        else {
+            var hyperlink = allHyperlinks[selectedHintIndex];
+            var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
+            if (href) {
+                (_a = window.open(href, "_blank")) === null || _a === void 0 ? void 0 : _a.focus();
             }
         }
+        // const hyperlink = allHyperlinks[Number(event.key)];
+        // const href = hyperlink?.href;
+        // if (href) {
+        //   window.open(href, "_blank")?.focus();
+        // }
     });
-    // });
 })();

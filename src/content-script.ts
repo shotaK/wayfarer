@@ -1,39 +1,17 @@
 (function () {
-  // document.addEventListener("load", function () {
-
   let hintsActivated = false;
+  let hintFirstActivatedKey: string;
 
   const HINT_MARKER_CONTAINER_CLASSNAME = "wayfarer-hint-marker-container";
   const HINT_MARKER_CLASSNAME = "wayfarer-hint-marker";
+  const HINT_MARKER_CLASSNAME_PREFIX = "wayfarer-hint-marker-prefix";
+  const HINT_MARKER_CLASSNAME_POSTFIX = "wayfarer-hint-marker-postfix";
 
-  const ENGLISH_LETTERS_AMOUNT = 26;
-  // const WAYFARER_TYPING_INPUT = "wayfarer-typing-input";
+  const ALPHABET_ENGLISH_KEY_OPTIMIZED = "abcdehijklmnopqrsuvwxyztgf";
+  const ENGLISH_LETTERS_AMOUNT = ALPHABET_ENGLISH_KEY_OPTIMIZED.length;
+  const SINGLE_DIGIT_NUM_AMOUNT = 10;
 
-  // const createTypingInput = (): HTMLInputElement => {
-  //   const typingInput = document.createElement("input");
-  //   typingInput.type = "hidden";
-  //   typingInput.setAttribute("name", "wayfarer-typing-input");
-  //   typingInput.classList.add(WAYFARER_TYPING_INPUT);
-  //   document.body.appendChild(typingInput);
-  //   return typingInput;
-  // };
-
-  // const focusToTypingInput = (typingInput: HTMLInputElement): void => {
-  //   if (typingInput) {
-  //     typingInput.focus();
-  //   }
-  // };
-
-  // const listenToTypingInput = (typingInput: HTMLInputElement): void => {
-  //   console.log(typingInput);
-  //   if (typingInput) {
-  //     typingInput.addEventListener("input", (e) => {
-  //       console.log("input", e);
-  //       e.preventDefault();
-  //       e.stopPropagation();
-  //     });
-  //   }
-  // };
+  const MAX_ALPHA_HINT_AMOUNT = 676;
 
   const createHintMarkerContainer = () => {
     const hintMarkerContainer = document.createElement("div");
@@ -41,10 +19,29 @@
     return hintMarkerContainer;
   };
 
+  const removeAllHintMarkerContainer = () => {
+    document
+      .querySelectorAll(`.${HINT_MARKER_CONTAINER_CLASSNAME}`)
+      .forEach((el) => el.remove());
+  };
+
   const loadHintMarkerContainer = () => {
     const hintMarkerContainer = createHintMarkerContainer();
     document.body.appendChild(hintMarkerContainer);
     return hintMarkerContainer;
+  };
+
+  const createHintMarkerKey = ({
+    key,
+    className,
+  }: {
+    key: string;
+    className: string;
+  }) => {
+    const hintMarkerKey = document.createElement("span");
+    hintMarkerKey.classList.add(className);
+    hintMarkerKey.innerText = key;
+    return hintMarkerKey;
   };
 
   const isVisible = (element: HTMLElement) => {
@@ -66,7 +63,24 @@
   }) => {
     const hintMarker = document.createElement("div");
     hintMarker.classList.add(HINT_MARKER_CLASSNAME);
-    hintMarker.innerText = markKey;
+    const [prefixKey, postfixKey] = markKey;
+
+    const prefixElement = createHintMarkerKey({
+      key: prefixKey,
+      className: HINT_MARKER_CLASSNAME_PREFIX,
+    });
+
+    hintMarker.appendChild(prefixElement);
+
+    if (postfixKey) {
+      const postfixElement = createHintMarkerKey({
+        key: postfixKey,
+        className: HINT_MARKER_CLASSNAME_POSTFIX,
+      });
+
+      hintMarker.appendChild(postfixElement);
+    }
+
     hintMarker.style.top = `${topPos}px`;
     hintMarker.style.left = `${leftPos}px`;
     return hintMarker;
@@ -98,97 +112,176 @@
     };
   };
 
-  const getAlphaKeys = (amount: number) => {
-    return "abcdefghijklmnopqrstuvwxyz".split("").slice(0, amount);
+  const getAlphaKeys = ({
+    start = 0,
+    end = ENGLISH_LETTERS_AMOUNT,
+  }: {
+    start?: number;
+    end?: number;
+  }) => {
+    return ALPHABET_ENGLISH_KEY_OPTIMIZED.split("").slice(start, end);
   };
 
-  const generateAlphaHintMarks = (alphaHintsTotal: number) => {
-    const totalExtraChunks =
-      Math.ceil(alphaHintsTotal / ENGLISH_LETTERS_AMOUNT) - 1;
+  const getChunkNumberByTotal = (total: number) => {
+    return Math.ceil(total / ENGLISH_LETTERS_AMOUNT) - 1;
+  };
 
-    if (ENGLISH_LETTERS_AMOUNT >= alphaHintsTotal) {
-      return getAlphaKeys(alphaHintsTotal);
-    }
-
-    const initialChunk = getAlphaKeys(
-      ENGLISH_LETTERS_AMOUNT - totalExtraChunks
-    );
-
-    const extraHintKeysTotal = alphaHintsTotal - ENGLISH_LETTERS_AMOUNT;
-
-    Array(extraHintKeysTotal)
+  const generateExtraHintKeys = (extraHintKeysTotal: number) => {
+    return Array(
+      extraHintKeysTotal <= MAX_ALPHA_HINT_AMOUNT
+        ? extraHintKeysTotal
+        : MAX_ALPHA_HINT_AMOUNT
+    )
       .fill(0)
       .map((_, index) => {
+        const currentChunkPrefixLetter =
+          ALPHABET_ENGLISH_KEY_OPTIMIZED[
+            ENGLISH_LETTERS_AMOUNT - getChunkNumberByTotal(index + 1) - 1
+          ];
 
+        return `${currentChunkPrefixLetter}${
+          ALPHABET_ENGLISH_KEY_OPTIMIZED[index % ENGLISH_LETTERS_AMOUNT]
+        }`;
       });
   };
 
-  console.log(generateAlphaHintMarks(89));
+  const generateAlphaHintMarks = (alphaHintsTotal: number) => {
+    if (!alphaHintsTotal) {
+      return [];
+    }
+
+    const initialChucks = getAlphaKeys({ end: alphaHintsTotal });
+
+    if (ENGLISH_LETTERS_AMOUNT >= alphaHintsTotal) {
+      return initialChucks;
+    }
+
+    const extraChunksAmount = getChunkNumberByTotal(alphaHintsTotal);
+
+    const initialChunksRefined = getAlphaKeys({
+      end: ENGLISH_LETTERS_AMOUNT - extraChunksAmount,
+    });
+
+    const extraHintKeysTotal = alphaHintsTotal - initialChunksRefined.length;
+
+    const extraChunksKeys = generateExtraHintKeys(extraHintKeysTotal);
+
+    return [
+      ...getAlphaKeys({ end: ENGLISH_LETTERS_AMOUNT - extraChunksAmount }),
+      ...extraChunksKeys,
+    ];
+  };
 
   const generateHintKeys = (totalHints: number) => {
     if (!totalHints) {
       return [];
     }
     const firstTenHintKeys = Array.from(
-      Array(totalHints > 10 ? 10 : totalHints),
+      Array(
+        totalHints > SINGLE_DIGIT_NUM_AMOUNT
+          ? SINGLE_DIGIT_NUM_AMOUNT
+          : totalHints
+      ),
       (d, i) => String(i)
     );
-    if (totalHints <= 10) {
+    if (totalHints <= SINGLE_DIGIT_NUM_AMOUNT) {
       return firstTenHintKeys;
     }
-    if (totalHints <= 36) {
-      return [...firstTenHintKeys, ...getAlphaKeys(totalHints - 10)];
-    }
-    if (totalHints <= 61) {
-      return [
-        ...firstTenHintKeys,
-        ..."abcdefghijklmnopqrstuvwxyz".split("").slice(0, totalHints - 10),
-      ];
-    }
+
+    return [
+      ...firstTenHintKeys,
+      ...generateAlphaHintMarks(totalHints - SINGLE_DIGIT_NUM_AMOUNT),
+    ];
   };
 
-  // console.log(generateHintKeys(36));
+  const renderHintMarkers = ({
+    renderPredicate,
+  }: {
+    renderPredicate?: ({ hintKey }: { hintKey: string }) => boolean;
+  }) => {
+    const hintMarkerContainer = loadHintMarkerContainer();
 
-  const renderHintMarkers = (hintMarkerContainer: HTMLDivElement) => {
-    getAllHyperlinks().forEach((hyperlink, index) => {
+    const allHyperlinks = getAllHyperlinks();
+    const hintKeys = generateHintKeys(allHyperlinks.length);
+    allHyperlinks.forEach((hyperlink, index) => {
       const coords = getCoords(hyperlink);
       if (hintMarkerContainer) {
         const hintMarker = createHintMarker({
-          markKey: index.toString(),
+          markKey: hintKeys[index],
           topPos: coords.top,
           leftPos: coords.left,
         });
+
+        if (renderPredicate) {
+          if (renderPredicate({ hintKey: hintKeys[index] })) {
+            hintMarkerContainer.appendChild(hintMarker);
+          }
+          return;
+        }
 
         hintMarkerContainer.appendChild(hintMarker);
       }
     });
   };
 
+  const dismissHints = () => {
+    removeAllHintMarkerContainer();
+  };
+
+  const activateThePrefixKey = ({ prefixKey }: { prefixKey: string }) => {
+    hintFirstActivatedKey = prefixKey;
+    removeAllHintMarkerContainer();
+    renderHintMarkers({
+      renderPredicate: ({ hintKey }) => {
+        return true;
+      },
+    });
+  };
+
   document.addEventListener("keydown", (event) => {
-    if (hintsActivated) {
-      if (event.key === "Escape") {
-        hintsActivated = false;
-      } else {
-        const hyperlink = getAllHyperlinks()[Number(event.key)];
-        const href = hyperlink?.href;
-        if (href) {
-          window.open(href, "_blank")?.focus();
+    const chosenHintKey = event.key;
+    if (!hintsActivated) {
+      if (chosenHintKey === "f") {
+        const allHyperlinks = getAllHyperlinks();
+
+        if (allHyperlinks.length > 0) {
+          renderHintMarkers({});
+          hintsActivated = true;
         }
       }
+
+      return;
     }
 
-    if (event.key === "f") {
-      const allHyperlinks = getAllHyperlinks();
+    if (chosenHintKey === "Escape") {
+      hintsActivated = false;
+      dismissHints();
+      return;
+    }
 
-      if (allHyperlinks.length > 0) {
-        const hintMarkerContainer = loadHintMarkerContainer();
-        renderHintMarkers(hintMarkerContainer);
-        hintsActivated = true;
-        // const typingInput = createTypingInput();
-        // focusToTypingInput(typingInput);
-        // listenToTypingInput(typingInput);
+    const allHyperlinks = getAllHyperlinks();
+
+    if (hintFirstActivatedKey) {
+    }
+
+    const selectedHintIndex = generateHintKeys(allHyperlinks.length).findIndex(
+      (hintKey) => hintKey === chosenHintKey
+    );
+
+    if (selectedHintIndex === -1) {
+      activateThePrefixKey({ prefixKey: chosenHintKey });
+    } else {
+      const hyperlink = allHyperlinks[selectedHintIndex];
+      const href = hyperlink?.href;
+
+      if (href) {
+        window.open(href, "_blank")?.focus();
       }
     }
+    // const hyperlink = allHyperlinks[Number(event.key)];
+    // const href = hyperlink?.href;
+    // if (href) {
+    //   window.open(href, "_blank")?.focus();
+    // }
   });
-  // });
 })();
