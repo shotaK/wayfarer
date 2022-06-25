@@ -1,10 +1,18 @@
-console.log("Wayfarer loading");
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 (function () {
-    console.log("clock");
     // document.addEventListener("load", function () {
     var hintsActivated = false;
     var HINT_MARKER_CONTAINER_CLASSNAME = "wayfarer-hint-marker-container";
     var HINT_MARKER_CLASSNAME = "wayfarer-hint-marker";
+    var ENGLISH_LETTERS_AMOUNT = 26;
     // const WAYFARER_TYPING_INPUT = "wayfarer-typing-input";
     // const createTypingInput = (): HTMLInputElement => {
     //   const typingInput = document.createElement("input");
@@ -73,6 +81,38 @@ console.log("Wayfarer loading");
             top: rect.top + window.scrollY
         };
     };
+    var getAlphaKeys = function (amount) {
+        return "abcdefghijklmnopqrstuvwxyz".split("").slice(0, amount);
+    };
+    var generateAlphaHintMarks = function (alphaHintsTotal) {
+        var totalExtraChunks = Math.ceil(alphaHintsTotal / ENGLISH_LETTERS_AMOUNT) - 1;
+        if (ENGLISH_LETTERS_AMOUNT >= alphaHintsTotal) {
+            return getAlphaKeys(alphaHintsTotal);
+        }
+        var initialChunk = getAlphaKeys(ENGLISH_LETTERS_AMOUNT - totalExtraChunks);
+        var extraHintKeysTotal = alphaHintsTotal - ENGLISH_LETTERS_AMOUNT;
+        Array(extraHintKeysTotal)
+            .fill(0)
+            .map(function (_, index) {
+        });
+    };
+    console.log(generateAlphaHintMarks(89));
+    var generateHintKeys = function (totalHints) {
+        if (!totalHints) {
+            return [];
+        }
+        var firstTenHintKeys = Array.from(Array(totalHints > 10 ? 10 : totalHints), function (d, i) { return String(i); });
+        if (totalHints <= 10) {
+            return firstTenHintKeys;
+        }
+        if (totalHints <= 36) {
+            return __spreadArray(__spreadArray([], firstTenHintKeys, true), getAlphaKeys(totalHints - 10), true);
+        }
+        if (totalHints <= 61) {
+            return __spreadArray(__spreadArray([], firstTenHintKeys, true), "abcdefghijklmnopqrstuvwxyz".split("").slice(0, totalHints - 10), true);
+        }
+    };
+    // console.log(generateHintKeys(36));
     var renderHintMarkers = function (hintMarkerContainer) {
         getAllHyperlinks().forEach(function (hyperlink, index) {
             var coords = getCoords(hyperlink);
