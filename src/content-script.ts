@@ -1,6 +1,11 @@
 (function () {
   let hintsActivated = false;
-  let hintFirstActivatedKey: string;
+  let hintPrefixActivatedKey: string = "";
+  let activatedHintsSuites: {
+    sourceElement: HTMLElement;
+    hintMark: HTMLDivElement;
+    hintKey: string;
+  }[] = [];
 
   const HINT_MARKER_CONTAINER_CLASSNAME = "wayfarer-hint-marker-container";
   const HINT_MARKER_CLASSNAME = "wayfarer-hint-marker";
@@ -12,6 +17,8 @@
   const SINGLE_DIGIT_NUM_AMOUNT = 10;
 
   const MAX_ALPHA_HINT_AMOUNT = 676;
+
+  const classify = (className: string) => `.${className}`;
 
   const createHintMarkerContainer = () => {
     const hintMarkerContainer = document.createElement("div");
@@ -203,39 +210,97 @@
 
     const allHyperlinks = getAllHyperlinks();
     const hintKeys = generateHintKeys(allHyperlinks.length);
-    allHyperlinks.forEach((hyperlink, index) => {
-      const coords = getCoords(hyperlink);
-      if (hintMarkerContainer) {
-        const hintMarker = createHintMarker({
-          markKey: hintKeys[index],
-          topPos: coords.top,
-          leftPos: coords.left,
-        });
 
+    const renderableHintMarks = allHyperlinks
+      .map((hyperlink, index) => {
+        const coords = getCoords(hyperlink);
+        return {
+          sourceElement: hyperlink,
+          hintKey: hintKeys[index],
+          hintMark: createHintMarker({
+            markKey: hintKeys[index],
+            topPos: coords.top,
+            leftPos: coords.left,
+          }),
+        };
+      })
+      .filter((_, index) => {
         if (renderPredicate) {
-          if (renderPredicate({ hintKey: hintKeys[index] })) {
-            hintMarkerContainer.appendChild(hintMarker);
-          }
-          return;
+          return renderPredicate({ hintKey: hintKeys[index] });
         }
+        return true;
+      });
 
-        hintMarkerContainer.appendChild(hintMarker);
-      }
-    });
+    activatedHintsSuites = renderableHintMarks;
+
+    renderableHintMarks.forEach(({ hintMark }) =>
+      hintMarkerContainer.appendChild(hintMark)
+    );
+  };
+
+  const openHyperlink = ({ hyperlink }: { hyperlink: HTMLAnchorElement }) => {
+    const href = hyperlink?.href;
+
+    if (href) {
+      window.open(href, "_blank")?.focus();
+    }
   };
 
   const dismissHints = () => {
     removeAllHintMarkerContainer();
+    hintsActivated = false;
+    hintPrefixActivatedKey = "";
+    activatedHintsSuites = [];
+  };
+
+  const isPostfixKey = ({ hintKey }: { hintKey: string }) => {
+    if (hintKey.length < 2) {
+      return false;
+    }
+
+    return hintKey.startsWith(hintPrefixActivatedKey);
+  };
+
+  const highlightPostfixKey = () => {
+    const prefixKeys = document.querySelectorAll<HTMLSpanElement>(
+      classify(HINT_MARKER_CLASSNAME_PREFIX)
+    );
+
+    prefixKeys.forEach((prefixKeyElement) => {
+      prefixKeyElement.style.opacity = "0.3";
+    });
   };
 
   const activateThePrefixKey = ({ prefixKey }: { prefixKey: string }) => {
-    hintFirstActivatedKey = prefixKey;
+    hintPrefixActivatedKey = prefixKey;
     removeAllHintMarkerContainer();
     renderHintMarkers({
-      renderPredicate: ({ hintKey }) => {
-        return true;
-      },
+      renderPredicate: isPostfixKey,
     });
+    highlightPostfixKey();
+  };
+
+  const handlePostfixHintKey = ({ postfixKey }: { postfixKey: string }) => {
+    const hintKeyChosen = `${hintPrefixActivatedKey}${postfixKey}`;
+    const activatedHintSuite = activatedHintsSuites.find(
+      ({ hintKey }) => hintKey === hintKeyChosen
+    );
+
+    if (activatedHintSuite) {
+      openHyperlink({
+        hyperlink: activatedHintSuite?.sourceElement as HTMLAnchorElement,
+      });
+    }
+
+    dismissHints();
+  };
+
+  const getHintIndex = (chosenHintKey: string) => {
+    const allHyperlinks = getAllHyperlinks();
+
+    return generateHintKeys(allHyperlinks.length).findIndex(
+      (hintKey) => hintKey === chosenHintKey
+    );
   };
 
   document.addEventListener("keydown", (event) => {
@@ -261,27 +326,19 @@
 
     const allHyperlinks = getAllHyperlinks();
 
-    if (hintFirstActivatedKey) {
+    if (hintPrefixActivatedKey) {
+      handlePostfixHintKey({ postfixKey: chosenHintKey });
+      return;
     }
 
-    const selectedHintIndex = generateHintKeys(allHyperlinks.length).findIndex(
-      (hintKey) => hintKey === chosenHintKey
-    );
+    const selectedHintIndex = getHintIndex(chosenHintKey);
 
     if (selectedHintIndex === -1) {
       activateThePrefixKey({ prefixKey: chosenHintKey });
     } else {
       const hyperlink = allHyperlinks[selectedHintIndex];
-      const href = hyperlink?.href;
-
-      if (href) {
-        window.open(href, "_blank")?.focus();
-      }
+      openHyperlink({ hyperlink });
+      dismissHints();
     }
-    // const hyperlink = allHyperlinks[Number(event.key)];
-    // const href = hyperlink?.href;
-    // if (href) {
-    //   window.open(href, "_blank")?.focus();
-    // }
   });
 })();

@@ -9,7 +9,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 (function () {
     var hintsActivated = false;
-    var hintFirstActivatedKey;
+    var hintPrefixActivatedKey = "";
+    var activatedHintsSuites = [];
     var HINT_MARKER_CONTAINER_CLASSNAME = "wayfarer-hint-marker-container";
     var HINT_MARKER_CLASSNAME = "wayfarer-hint-marker";
     var HINT_MARKER_CLASSNAME_PREFIX = "wayfarer-hint-marker-prefix";
@@ -18,6 +19,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     var ENGLISH_LETTERS_AMOUNT = ALPHABET_ENGLISH_KEY_OPTIMIZED.length;
     var SINGLE_DIGIT_NUM_AMOUNT = 10;
     var MAX_ALPHA_HINT_AMOUNT = 676;
+    var classify = function (className) { return ".".concat(className); };
     var createHintMarkerContainer = function () {
         var hintMarkerContainer = document.createElement("div");
         hintMarkerContainer.classList.add(HINT_MARKER_CONTAINER_CLASSNAME);
@@ -136,40 +138,86 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         var hintMarkerContainer = loadHintMarkerContainer();
         var allHyperlinks = getAllHyperlinks();
         var hintKeys = generateHintKeys(allHyperlinks.length);
-        allHyperlinks.forEach(function (hyperlink, index) {
+        var renderableHintMarks = allHyperlinks
+            .map(function (hyperlink, index) {
             var coords = getCoords(hyperlink);
-            if (hintMarkerContainer) {
-                var hintMarker = createHintMarker({
+            return {
+                sourceElement: hyperlink,
+                hintKey: hintKeys[index],
+                hintMark: createHintMarker({
                     markKey: hintKeys[index],
                     topPos: coords.top,
                     leftPos: coords.left
-                });
-                if (renderPredicate) {
-                    if (renderPredicate({ hintKey: hintKeys[index] })) {
-                        hintMarkerContainer.appendChild(hintMarker);
-                    }
-                    return;
-                }
-                hintMarkerContainer.appendChild(hintMarker);
+                })
+            };
+        })
+            .filter(function (_, index) {
+            if (renderPredicate) {
+                return renderPredicate({ hintKey: hintKeys[index] });
             }
+            return true;
         });
+        activatedHintsSuites = renderableHintMarks;
+        renderableHintMarks.forEach(function (_a) {
+            var hintMark = _a.hintMark;
+            return hintMarkerContainer.appendChild(hintMark);
+        });
+    };
+    var openHyperlink = function (_a) {
+        var _b;
+        var hyperlink = _a.hyperlink;
+        var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
+        if (href) {
+            (_b = window.open(href, "_blank")) === null || _b === void 0 ? void 0 : _b.focus();
+        }
     };
     var dismissHints = function () {
         removeAllHintMarkerContainer();
+        hintsActivated = false;
+        hintPrefixActivatedKey = "";
+        activatedHintsSuites = [];
+    };
+    var isPostfixKey = function (_a) {
+        var hintKey = _a.hintKey;
+        if (hintKey.length < 2) {
+            return false;
+        }
+        return hintKey.startsWith(hintPrefixActivatedKey);
+    };
+    var highlightPostfixKey = function () {
+        var prefixKeys = document.querySelectorAll(classify(HINT_MARKER_CLASSNAME_PREFIX));
+        prefixKeys.forEach(function (prefixKeyElement) {
+            prefixKeyElement.style.opacity = "0.3";
+        });
     };
     var activateThePrefixKey = function (_a) {
         var prefixKey = _a.prefixKey;
-        hintFirstActivatedKey = prefixKey;
+        hintPrefixActivatedKey = prefixKey;
         removeAllHintMarkerContainer();
         renderHintMarkers({
-            renderPredicate: function (_a) {
-                var hintKey = _a.hintKey;
-                return true;
-            }
+            renderPredicate: isPostfixKey
         });
+        highlightPostfixKey();
+    };
+    var handlePostfixHintKey = function (_a) {
+        var postfixKey = _a.postfixKey;
+        var hintKeyChosen = "".concat(hintPrefixActivatedKey).concat(postfixKey);
+        var activatedHintSuite = activatedHintsSuites.find(function (_a) {
+            var hintKey = _a.hintKey;
+            return hintKey === hintKeyChosen;
+        });
+        if (activatedHintSuite) {
+            openHyperlink({
+                hyperlink: activatedHintSuite === null || activatedHintSuite === void 0 ? void 0 : activatedHintSuite.sourceElement
+            });
+        }
+        dismissHints();
+    };
+    var getHintIndex = function (chosenHintKey) {
+        var allHyperlinks = getAllHyperlinks();
+        return generateHintKeys(allHyperlinks.length).findIndex(function (hintKey) { return hintKey === chosenHintKey; });
     };
     document.addEventListener("keydown", function (event) {
-        var _a;
         var chosenHintKey = event.key;
         if (!hintsActivated) {
             if (chosenHintKey === "f") {
@@ -187,23 +235,18 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return;
         }
         var allHyperlinks = getAllHyperlinks();
-        if (hintFirstActivatedKey) {
+        if (hintPrefixActivatedKey) {
+            handlePostfixHintKey({ postfixKey: chosenHintKey });
+            return;
         }
-        var selectedHintIndex = generateHintKeys(allHyperlinks.length).findIndex(function (hintKey) { return hintKey === chosenHintKey; });
+        var selectedHintIndex = getHintIndex(chosenHintKey);
         if (selectedHintIndex === -1) {
             activateThePrefixKey({ prefixKey: chosenHintKey });
         }
         else {
             var hyperlink = allHyperlinks[selectedHintIndex];
-            var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
-            if (href) {
-                (_a = window.open(href, "_blank")) === null || _a === void 0 ? void 0 : _a.focus();
-            }
+            openHyperlink({ hyperlink: hyperlink });
+            dismissHints();
         }
-        // const hyperlink = allHyperlinks[Number(event.key)];
-        // const href = hyperlink?.href;
-        // if (href) {
-        //   window.open(href, "_blank")?.focus();
-        // }
     });
 })();
