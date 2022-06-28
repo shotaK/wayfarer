@@ -51,7 +51,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         var markKey = _a.markKey, topPos = _a.topPos, leftPos = _a.leftPos;
         var hintMarker = document.createElement("div");
         hintMarker.classList.add(HINT_MARKER_CLASSNAME);
-        var prefixKey = markKey[0], postfixKey = markKey[1];
+        var _b = markKey.split(""), prefixKey = _b[0], postfixKey = _b[1];
         var prefixElement = createHintMarkerKey({
             key: prefixKey,
             className: HINT_MARKER_CLASSNAME_PREFIX
@@ -165,10 +165,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     };
     var openHyperlink = function (_a) {
         var _b;
-        var hyperlink = _a.hyperlink;
+        var hyperlink = _a.hyperlink, _c = _a.newTab, newTab = _c === void 0 ? false : _c;
         var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
         if (href) {
-            (_b = window.open(href, "_blank")) === null || _b === void 0 ? void 0 : _b.focus();
+            (_b = window.open(href, newTab ? "_blank" : "_self")) === null || _b === void 0 ? void 0 : _b.focus();
         }
     };
     var dismissHints = function () {
@@ -197,10 +197,15 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         renderHintMarkers({
             renderPredicate: isPostfixKey
         });
-        highlightPostfixKey();
+        if (activatedHintsSuites.length === 0) {
+            dismissHints();
+        }
+        else {
+            highlightPostfixKey();
+        }
     };
     var handlePostfixHintKey = function (_a) {
-        var postfixKey = _a.postfixKey;
+        var postfixKey = _a.postfixKey, isShift = _a.isShift;
         var hintKeyChosen = "".concat(hintPrefixActivatedKey).concat(postfixKey);
         var activatedHintSuite = activatedHintsSuites.find(function (_a) {
             var hintKey = _a.hintKey;
@@ -208,7 +213,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         });
         if (activatedHintSuite) {
             openHyperlink({
-                hyperlink: activatedHintSuite === null || activatedHintSuite === void 0 ? void 0 : activatedHintSuite.sourceElement
+                hyperlink: activatedHintSuite === null || activatedHintSuite === void 0 ? void 0 : activatedHintSuite.sourceElement,
+                newTab: isShift
             });
         }
         dismissHints();
@@ -217,8 +223,24 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         var allHyperlinks = getAllHyperlinks();
         return generateHintKeys(allHyperlinks.length).findIndex(function (hintKey) { return hintKey === chosenHintKey; });
     };
+    var keyCodeToHintKey = function (keyCode) {
+        if (keyCode === void 0) { keyCode = ""; }
+        if (keyCode.startsWith("Digit")) {
+            var _a = keyCode.split("Digit"), _ = _a[0], hintKey = _a[1];
+            return hintKey;
+        }
+        if (keyCode.startsWith("Key")) {
+            var _b = keyCode.split("Key"), _ = _b[0], hintKey = _b[1];
+            return hintKey.toLowerCase();
+        }
+        return keyCode.toLowerCase();
+    };
     document.addEventListener("keydown", function (event) {
-        var chosenHintKey = event.key;
+        var chosenHintKey = keyCodeToHintKey(event.code);
+        var isShift = event.shiftKey;
+        if (["ShiftLeft", "ShiftRight"].includes(event.code) || event.ctrlKey) {
+            return;
+        }
         if (!hintsActivated) {
             if (chosenHintKey === "f") {
                 var allHyperlinks_1 = getAllHyperlinks();
@@ -236,17 +258,16 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
         var allHyperlinks = getAllHyperlinks();
         if (hintPrefixActivatedKey) {
-            handlePostfixHintKey({ postfixKey: chosenHintKey });
+            handlePostfixHintKey({ postfixKey: chosenHintKey, isShift: isShift });
             return;
         }
         var selectedHintIndex = getHintIndex(chosenHintKey);
         if (selectedHintIndex === -1) {
             activateThePrefixKey({ prefixKey: chosenHintKey });
+            return;
         }
-        else {
-            var hyperlink = allHyperlinks[selectedHintIndex];
-            openHyperlink({ hyperlink: hyperlink });
-            dismissHints();
-        }
+        var hyperlink = allHyperlinks[selectedHintIndex];
+        openHyperlink({ hyperlink: hyperlink, newTab: isShift });
+        dismissHints();
     });
 })();
