@@ -165,10 +165,15 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     };
     var openHyperlink = function (_a) {
         var _b;
-        var hyperlink = _a.hyperlink, _c = _a.newTab, newTab = _c === void 0 ? false : _c;
+        var hyperlink = _a.hyperlink, event = _a.event;
         var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
+        var isShift = event.shiftKey;
+        if (!href || href.startsWith("javascript") || href.startsWith("#")) {
+            hyperlink.click();
+            return;
+        }
         if (href) {
-            (_b = window.open(href, newTab ? "_blank" : "_self")) === null || _b === void 0 ? void 0 : _b.focus();
+            (_b = window.open(href, isShift ? "_blank" : "_self")) === null || _b === void 0 ? void 0 : _b.focus();
         }
     };
     var dismissHints = function () {
@@ -205,7 +210,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
     };
     var handlePostfixHintKey = function (_a) {
-        var postfixKey = _a.postfixKey, isShift = _a.isShift;
+        var postfixKey = _a.postfixKey, event = _a.event;
         var hintKeyChosen = "".concat(hintPrefixActivatedKey).concat(postfixKey);
         var activatedHintSuite = activatedHintsSuites.find(function (_a) {
             var hintKey = _a.hintKey;
@@ -214,7 +219,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         if (activatedHintSuite) {
             openHyperlink({
                 hyperlink: activatedHintSuite === null || activatedHintSuite === void 0 ? void 0 : activatedHintSuite.sourceElement,
-                newTab: isShift
+                event: event
             });
         }
         dismissHints();
@@ -237,7 +242,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     };
     document.addEventListener("keydown", function (event) {
         var chosenHintKey = keyCodeToHintKey(event.code);
-        var isShift = event.shiftKey;
         if (["ShiftLeft", "ShiftRight"].includes(event.code) || event.ctrlKey) {
             return;
         }
@@ -258,7 +262,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
         var allHyperlinks = getAllHyperlinks();
         if (hintPrefixActivatedKey) {
-            handlePostfixHintKey({ postfixKey: chosenHintKey, isShift: isShift });
+            handlePostfixHintKey({ postfixKey: chosenHintKey, event: event });
             return;
         }
         var selectedHintIndex = getHintIndex(chosenHintKey);
@@ -267,7 +271,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return;
         }
         var hyperlink = allHyperlinks[selectedHintIndex];
-        openHyperlink({ hyperlink: hyperlink, newTab: isShift });
+        openHyperlink({ hyperlink: hyperlink, event: event });
         dismissHints();
     });
 })();

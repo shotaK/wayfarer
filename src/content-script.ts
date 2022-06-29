@@ -240,15 +240,21 @@
 
   const openHyperlink = ({
     hyperlink,
-    newTab = false,
+    event,
   }: {
     hyperlink: HTMLAnchorElement;
-    newTab?: boolean;
+    event: KeyboardEvent;
   }) => {
     const href = hyperlink?.href;
+    const isShift = event.shiftKey;
+
+    if (!href || href.startsWith("javascript") || href.startsWith("#")) {
+      hyperlink.click();
+      return;
+    }
 
     if (href) {
-      window.open(href, newTab ? "_blank" : "_self")?.focus();
+      window.open(href, isShift ? "_blank" : "_self")?.focus();
     }
   };
 
@@ -292,10 +298,10 @@
 
   const handlePostfixHintKey = ({
     postfixKey,
-    isShift,
+    event,
   }: {
     postfixKey: string;
-    isShift: boolean;
+    event: KeyboardEvent;
   }) => {
     const hintKeyChosen = `${hintPrefixActivatedKey}${postfixKey}`;
     const activatedHintSuite = activatedHintsSuites.find(
@@ -305,7 +311,7 @@
     if (activatedHintSuite) {
       openHyperlink({
         hyperlink: activatedHintSuite?.sourceElement as HTMLAnchorElement,
-        newTab: isShift,
+        event,
       });
     }
 
@@ -334,7 +340,6 @@
 
   document.addEventListener("keydown", (event) => {
     const chosenHintKey = keyCodeToHintKey(event.code);
-    const isShift = event.shiftKey;
 
     if (["ShiftLeft", "ShiftRight"].includes(event.code) || event.ctrlKey) {
       return;
@@ -362,7 +367,7 @@
     const allHyperlinks = getAllHyperlinks();
 
     if (hintPrefixActivatedKey) {
-      handlePostfixHintKey({ postfixKey: chosenHintKey, isShift });
+      handlePostfixHintKey({ postfixKey: chosenHintKey, event });
       return;
     }
 
@@ -374,7 +379,7 @@
     }
 
     const hyperlink = allHyperlinks[selectedHintIndex];
-    openHyperlink({ hyperlink, newTab: isShift });
+    openHyperlink({ hyperlink, event });
     dismissHints();
   });
 })();
