@@ -51,13 +51,44 @@
     return hintMarkerKey;
   };
 
-  const isVisible = (element: HTMLElement) => {
-    return (
-      element.offsetWidth > 0 ||
-      element.offsetHeight > 0 ||
-      element.getClientRects().length > 0
-    );
-  };
+  function isVisible(elem: HTMLElement) {
+    if (!(elem instanceof Element))
+      throw Error("DomUtil: elem is not an element.");
+    const style = getComputedStyle(elem);
+    if (style.display === "none") return false;
+    if (style.visibility !== "visible") return false;
+    if (Number(style.opacity) < 0.1) return false;
+    if (
+      elem.offsetWidth +
+        elem.offsetHeight +
+        elem.getBoundingClientRect().height +
+        elem.getBoundingClientRect().width ===
+      0
+    ) {
+      return false;
+    }
+    const elemCenter = {
+      x: elem.getBoundingClientRect().left + elem.offsetWidth / 2,
+      y: elem.getBoundingClientRect().top + elem.offsetHeight / 2,
+    };
+    if (elemCenter.x < 0) return false;
+    if (
+      elemCenter.x > (document.documentElement.clientWidth || window.innerWidth)
+    )
+      return false;
+    if (elemCenter.y < 0) return false;
+    if (
+      elemCenter.y >
+      (document.documentElement.clientHeight || window.innerHeight)
+    )
+      return false;
+    let pointContainer: ParentNode | null | undefined =
+      document.elementFromPoint(elemCenter.x, elemCenter.y);
+    do {
+      if (pointContainer === elem) return true;
+    } while ((pointContainer = pointContainer?.parentNode));
+    return false;
+  }
 
   const createHintMarker = ({
     markKey,
@@ -105,8 +136,8 @@
     );
   };
 
-  const getAllHyperlinks = () => {
-    return Array.from(document.querySelectorAll("a"))
+  const getAllActionableElements = () => {
+    return Array.from(document.querySelectorAll<HTMLElement>("a, button"))
       .filter(isVisible)
       .filter(isElementInViewport);
   };
@@ -208,7 +239,7 @@
   }) => {
     const hintMarkerContainer = loadHintMarkerContainer();
 
-    const allHyperlinks = getAllHyperlinks();
+    const allHyperlinks = getAllActionableElements();
     const hintKeys = generateHintKeys(allHyperlinks.length);
 
     const renderableHintMarks = allHyperlinks
@@ -319,7 +350,7 @@
   };
 
   const getHintIndex = (chosenHintKey: string) => {
-    const allHyperlinks = getAllHyperlinks();
+    const allHyperlinks = getAllActionableElements();
 
     return generateHintKeys(allHyperlinks.length).findIndex(
       (hintKey) => hintKey === chosenHintKey
@@ -345,11 +376,11 @@
       return;
     }
 
+    const allActionableElements = getAllActionableElements();
+
     if (!hintsActivated) {
       if (chosenHintKey === "f") {
-        const allHyperlinks = getAllHyperlinks();
-
-        if (allHyperlinks.length > 0) {
+        if (allActionableElements.length > 0) {
           renderHintMarkers({});
           hintsActivated = true;
         }
@@ -364,8 +395,6 @@
       return;
     }
 
-    const allHyperlinks = getAllHyperlinks();
-
     if (hintPrefixActivatedKey) {
       handlePostfixHintKey({ postfixKey: chosenHintKey, event });
       return;
@@ -378,7 +407,8 @@
       return;
     }
 
-    const hyperlink = allHyperlinks[selectedHintIndex];
+    const actionableElement = allActionableElements[selectedHintIndex];
+    console.log(actionableElement);
     openHyperlink({ hyperlink, event });
     dismissHints();
   });

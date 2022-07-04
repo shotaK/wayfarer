@@ -42,11 +42,43 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         hintMarkerKey.innerText = key;
         return hintMarkerKey;
     };
-    var isVisible = function (element) {
-        return (element.offsetWidth > 0 ||
-            element.offsetHeight > 0 ||
-            element.getClientRects().length > 0);
-    };
+    function isVisible(elem) {
+        if (!(elem instanceof Element))
+            throw Error("DomUtil: elem is not an element.");
+        var style = getComputedStyle(elem);
+        if (style.display === "none")
+            return false;
+        if (style.visibility !== "visible")
+            return false;
+        if (Number(style.opacity) < 0.1)
+            return false;
+        if (elem.offsetWidth +
+            elem.offsetHeight +
+            elem.getBoundingClientRect().height +
+            elem.getBoundingClientRect().width ===
+            0) {
+            return false;
+        }
+        var elemCenter = {
+            x: elem.getBoundingClientRect().left + elem.offsetWidth / 2,
+            y: elem.getBoundingClientRect().top + elem.offsetHeight / 2
+        };
+        if (elemCenter.x < 0)
+            return false;
+        if (elemCenter.x > (document.documentElement.clientWidth || window.innerWidth))
+            return false;
+        if (elemCenter.y < 0)
+            return false;
+        if (elemCenter.y >
+            (document.documentElement.clientHeight || window.innerHeight))
+            return false;
+        var pointContainer = document.elementFromPoint(elemCenter.x, elemCenter.y);
+        do {
+            if (pointContainer === elem)
+                return true;
+        } while ((pointContainer = pointContainer === null || pointContainer === void 0 ? void 0 : pointContainer.parentNode));
+        return false;
+    }
     var createHintMarker = function (_a) {
         var markKey = _a.markKey, topPos = _a.topPos, leftPos = _a.leftPos;
         var hintMarker = document.createElement("div");
@@ -76,8 +108,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 (window.innerHeight || document.documentElement.clientHeight) &&
             rect.right <= (window.innerWidth || document.documentElement.clientWidth));
     };
-    var getAllHyperlinks = function () {
-        return Array.from(document.querySelectorAll("a"))
+    var getAllActionableElements = function () {
+        return Array.from(document.querySelectorAll("a, button"))
             .filter(isVisible)
             .filter(isElementInViewport);
     };
@@ -136,7 +168,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     var renderHintMarkers = function (_a) {
         var renderPredicate = _a.renderPredicate;
         var hintMarkerContainer = loadHintMarkerContainer();
-        var allHyperlinks = getAllHyperlinks();
+        var allHyperlinks = getAllActionableElements();
         var hintKeys = generateHintKeys(allHyperlinks.length);
         var renderableHintMarks = allHyperlinks
             .map(function (hyperlink, index) {
@@ -225,7 +257,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         dismissHints();
     };
     var getHintIndex = function (chosenHintKey) {
-        var allHyperlinks = getAllHyperlinks();
+        var allHyperlinks = getAllActionableElements();
         return generateHintKeys(allHyperlinks.length).findIndex(function (hintKey) { return hintKey === chosenHintKey; });
     };
     var keyCodeToHintKey = function (keyCode) {
@@ -245,10 +277,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         if (["ShiftLeft", "ShiftRight"].includes(event.code) || event.ctrlKey) {
             return;
         }
+        var allActionableElements = getAllActionableElements();
         if (!hintsActivated) {
             if (chosenHintKey === "f") {
-                var allHyperlinks_1 = getAllHyperlinks();
-                if (allHyperlinks_1.length > 0) {
+                if (allActionableElements.length > 0) {
                     renderHintMarkers({});
                     hintsActivated = true;
                 }
@@ -260,7 +292,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             dismissHints();
             return;
         }
-        var allHyperlinks = getAllHyperlinks();
         if (hintPrefixActivatedKey) {
             handlePostfixHintKey({ postfixKey: chosenHintKey, event: event });
             return;
@@ -270,7 +301,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             activateThePrefixKey({ prefixKey: chosenHintKey });
             return;
         }
-        var hyperlink = allHyperlinks[selectedHintIndex];
+        var actionableElement = allActionableElements[selectedHintIndex];
+        console.log(actionableElement);
         openHyperlink({ hyperlink: hyperlink, event: event });
         dismissHints();
     });
