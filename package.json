@@ -28,6 +28,7 @@
   "homepage": "https://github.com/shotaK/wayfarer#readme",
   "devDependencies": {
     "@types/node": "^18.0.0",
+    "eslint": "^8.19.0",
     "nodemon": "^2.0.16",
     "prettier": "^2.7.1",
     "rimraf": "^3.0.2",

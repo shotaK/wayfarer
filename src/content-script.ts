@@ -1,6 +1,7 @@
 (function () {
   let hintsActivated = false;
   let hintPrefixActivatedKey: string = "";
+  let allActionableElements: HTMLElement[] = [];
   let activatedHintsSuites: {
     sourceElement: HTMLElement;
     hintMark: HTMLDivElement;
@@ -71,23 +72,30 @@
       x: elem.getBoundingClientRect().left + elem.offsetWidth / 2,
       y: elem.getBoundingClientRect().top + elem.offsetHeight / 2,
     };
-    if (elemCenter.x < 0) return false;
+    if (elemCenter.x < 0) {
+      return false;
+    }
+
     if (
       elemCenter.x > (document.documentElement.clientWidth || window.innerWidth)
-    )
+    ) {
       return false;
+    }
+
     if (elemCenter.y < 0) return false;
     if (
       elemCenter.y >
       (document.documentElement.clientHeight || window.innerHeight)
-    )
+    ) {
       return false;
+    }
+
     let pointContainer: ParentNode | null | undefined =
       document.elementFromPoint(elemCenter.x, elemCenter.y);
     do {
       if (pointContainer === elem) return true;
     } while ((pointContainer = pointContainer?.parentNode));
-    return false;
+    return true;
   }
 
   const createHintMarker = ({
@@ -138,7 +146,9 @@
 
   const getAllActionableElements = () => {
     return Array.from(
-      document.querySelectorAll<HTMLElement>("a, button, input")
+      document.querySelectorAll<HTMLElement>(
+        "a, button, input, select, textarea"
+      )
     )
       .filter(isVisible)
       .filter(isElementInViewport);
@@ -241,14 +251,13 @@
   }) => {
     const hintMarkerContainer = loadHintMarkerContainer();
 
-    const allHyperlinks = getAllActionableElements();
-    const hintKeys = generateHintKeys(allHyperlinks.length);
+    const hintKeys = generateHintKeys(allActionableElements.length);
 
-    const renderableHintMarks = allHyperlinks
-      .map((hyperlink, index) => {
-        const coords = getCoords(hyperlink);
+    const renderableHintMarks = allActionableElements
+      .map((actionableElement, index) => {
+        const coords = getCoords(actionableElement);
         return {
-          sourceElement: hyperlink,
+          sourceElement: actionableElement,
           hintKey: hintKeys[index],
           hintMark: createHintMarker({
             markKey: hintKeys[index],
@@ -300,6 +309,7 @@
     hintsActivated = false;
     hintPrefixActivatedKey = "";
     activatedHintsSuites = [];
+    allActionableElements = [];
   };
 
   const isPostfixKey = ({ hintKey }: { hintKey: string }) => {
@@ -336,23 +346,54 @@
   const handleInputAction = ({ input }: { input: HTMLInputElement }) => {
     const { type } = input;
 
-    if (type === "button") {
+    if (
+      [
+        "button",
+        "submit",
+        "color",
+        "checkbox",
+        "radio",
+        "file",
+        "image",
+        "reset",
+      ].includes(type)
+    ) {
       input.click();
-    }
-
-    if (type === "submit") {
-      input.click();
+      return;
     }
 
     if (
-      ["text", "email", "number", "search", "tel", "url", "password"].includes(
-        type
-      )
+      [
+        "text",
+        "email",
+        "number",
+        "search",
+        "tel",
+        "url",
+        "password",
+        "date",
+        "datetime-local",
+        "month",
+        "week",
+        "range",
+      ].includes(type)
     ) {
       setTimeout(() => {
         input.focus();
       }, 0);
     }
+  };
+
+  const handleSelectAction = ({ select }: { select: HTMLSelectElement }) => {
+    select.focus();
+  };
+
+  const handleTextAreaAction = ({
+    textarea,
+  }: {
+    textarea: HTMLTextAreaElement;
+  }) => {
+    textarea.focus();
   };
 
   const triggerClickOnElement = ({
@@ -371,6 +412,10 @@
       clickButton({ button: element });
     } else if (element instanceof HTMLInputElement) {
       handleInputAction({ input: element });
+    } else if (element instanceof HTMLSelectElement) {
+      handleSelectAction({ select: element });
+    } else if (element instanceof HTMLTextAreaElement) {
+      handleTextAreaAction({ textarea: element });
     }
   };
 
@@ -397,9 +442,7 @@
   };
 
   const getHintIndex = (chosenHintKey: string) => {
-    const allHyperlinks = getAllActionableElements();
-
-    return generateHintKeys(allHyperlinks.length).findIndex(
+    return generateHintKeys(allActionableElements.length).findIndex(
       (hintKey) => hintKey === chosenHintKey
     );
   };
@@ -417,15 +460,26 @@
   };
 
   document.addEventListener("keydown", (event) => {
+    if (!event.isTrusted) {
+      return false;
+    }
+
+    if (event?.target) {
+      const element = event.target as HTMLInputElement;
+      if (element?.tagName?.toLowerCase() === "input") {
+        return;
+      }
+    }
+
     const chosenHintKey = keyCodeToHintKey(event.code);
 
     if (["ShiftLeft", "ShiftRight"].includes(event.code) || event.ctrlKey) {
       return;
     }
 
-    const allActionableElements = getAllActionableElements();
-
     if (!hintsActivated) {
+      allActionableElements = getAllActionableElements();
+
       if (chosenHintKey === "f") {
         if (allActionableElements.length > 0) {
           renderHintMarkers({});
@@ -456,10 +510,12 @@
 
     const actionableElement = allActionableElements[selectedHintIndex];
 
-    triggerClickOnElement({
-      element: actionableElement,
-      event,
-    });
+    if (actionableElement) {
+      triggerClickOnElement({
+        element: actionableElement,
+        event,
+      });
+    }
 
     dismissHints();
   });
