@@ -109,7 +109,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             rect.right <= (window.innerWidth || document.documentElement.clientWidth));
     };
     var getAllActionableElements = function () {
-        return Array.from(document.querySelectorAll("a, button"))
+        return Array.from(document.querySelectorAll("a, button, input"))
             .filter(isVisible)
             .filter(isElementInViewport);
     };
@@ -208,6 +208,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             (_b = window.open(href, isShift ? "_blank" : "_self")) === null || _b === void 0 ? void 0 : _b.focus();
         }
     };
+    var clickButton = function (_a) {
+        var button = _a.button;
+        button.click();
+    };
     var dismissHints = function () {
         removeAllHintMarkerContainer();
         hintsActivated = false;
@@ -241,6 +245,36 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             highlightPostfixKey();
         }
     };
+    var handleInputAction = function (_a) {
+        var input = _a.input;
+        var type = input.type;
+        if (type === "button") {
+            input.click();
+        }
+        if (type === "submit") {
+            input.click();
+        }
+        if (["text", "email", "number", "search", "tel", "url", "password"].includes(type)) {
+            setTimeout(function () {
+                input.focus();
+            }, 0);
+        }
+    };
+    var triggerClickOnElement = function (_a) {
+        var element = _a.element, event = _a.event;
+        if (element instanceof HTMLAnchorElement) {
+            openHyperlink({
+                hyperlink: element,
+                event: event
+            });
+        }
+        else if (element instanceof HTMLButtonElement) {
+            clickButton({ button: element });
+        }
+        else if (element instanceof HTMLInputElement) {
+            handleInputAction({ input: element });
+        }
+    };
     var handlePostfixHintKey = function (_a) {
         var postfixKey = _a.postfixKey, event = _a.event;
         var hintKeyChosen = "".concat(hintPrefixActivatedKey).concat(postfixKey);
@@ -249,8 +283,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return hintKey === hintKeyChosen;
         });
         if (activatedHintSuite) {
-            openHyperlink({
-                hyperlink: activatedHintSuite === null || activatedHintSuite === void 0 ? void 0 : activatedHintSuite.sourceElement,
+            triggerClickOnElement({
+                element: activatedHintSuite.sourceElement,
                 event: event
             });
         }
@@ -302,8 +336,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return;
         }
         var actionableElement = allActionableElements[selectedHintIndex];
-        console.log(actionableElement);
-        openHyperlink({ hyperlink: hyperlink, event: event });
+        triggerClickOnElement({
+            element: actionableElement,
+            event: event
+        });
         dismissHints();
     });
 })();

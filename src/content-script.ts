@@ -137,7 +137,9 @@
   };
 
   const getAllActionableElements = () => {
-    return Array.from(document.querySelectorAll<HTMLElement>("a, button"))
+    return Array.from(
+      document.querySelectorAll<HTMLElement>("a, button, input")
+    )
       .filter(isVisible)
       .filter(isElementInViewport);
   };
@@ -289,6 +291,10 @@
     }
   };
 
+  const clickButton = ({ button }: { button: HTMLButtonElement }) => {
+    button.click();
+  };
+
   const dismissHints = () => {
     removeAllHintMarkerContainer();
     hintsActivated = false;
@@ -327,6 +333,47 @@
     }
   };
 
+  const handleInputAction = ({ input }: { input: HTMLInputElement }) => {
+    const { type } = input;
+
+    if (type === "button") {
+      input.click();
+    }
+
+    if (type === "submit") {
+      input.click();
+    }
+
+    if (
+      ["text", "email", "number", "search", "tel", "url", "password"].includes(
+        type
+      )
+    ) {
+      setTimeout(() => {
+        input.focus();
+      }, 0);
+    }
+  };
+
+  const triggerClickOnElement = ({
+    element,
+    event,
+  }: {
+    element: HTMLElement;
+    event: KeyboardEvent;
+  }) => {
+    if (element instanceof HTMLAnchorElement) {
+      openHyperlink({
+        hyperlink: element,
+        event,
+      });
+    } else if (element instanceof HTMLButtonElement) {
+      clickButton({ button: element });
+    } else if (element instanceof HTMLInputElement) {
+      handleInputAction({ input: element });
+    }
+  };
+
   const handlePostfixHintKey = ({
     postfixKey,
     event,
@@ -340,8 +387,8 @@
     );
 
     if (activatedHintSuite) {
-      openHyperlink({
-        hyperlink: activatedHintSuite?.sourceElement as HTMLAnchorElement,
+      triggerClickOnElement({
+        element: activatedHintSuite.sourceElement,
         event,
       });
     }
@@ -408,8 +455,12 @@
     }
 
     const actionableElement = allActionableElements[selectedHintIndex];
-    console.log(actionableElement);
-    openHyperlink({ hyperlink, event });
+
+    triggerClickOnElement({
+      element: actionableElement,
+      event,
+    });
+
     dismissHints();
   });
 })();
