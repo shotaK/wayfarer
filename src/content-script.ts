@@ -19,6 +19,21 @@
 
   const MAX_ALPHA_HINT_AMOUNT = 676;
 
+  const editableInputList = [
+    "text",
+    "email",
+    "number",
+    "search",
+    "tel",
+    "url",
+    "password",
+    "date",
+    "datetime-local",
+    "month",
+    "week",
+    "range",
+  ];
+
   const classify = (className: string) => `.${className}`;
 
   const createHintMarkerContainer = () => {
@@ -95,7 +110,7 @@
     do {
       if (pointContainer === elem) return true;
     } while ((pointContainer = pointContainer?.parentNode));
-    return true;
+    return false;
   }
 
   const createHintMarker = ({
@@ -362,22 +377,7 @@
       return;
     }
 
-    if (
-      [
-        "text",
-        "email",
-        "number",
-        "search",
-        "tel",
-        "url",
-        "password",
-        "date",
-        "datetime-local",
-        "month",
-        "week",
-        "range",
-      ].includes(type)
-    ) {
+    if (editableInputList.includes(type)) {
       setTimeout(() => {
         input.focus();
       }, 0);
@@ -459,16 +459,30 @@
     return keyCode.toLowerCase();
   };
 
+  const isUserInEditingMode = ({ event }: { event: KeyboardEvent }) => {
+    const element = event?.target as HTMLInputElement;
+    const tagName = element?.tagName?.toLowerCase();
+
+    if (tagName === "input") {
+      if (editableInputList.includes(element?.type)) {
+        return true;
+      }
+    }
+
+    if (tagName === "textarea") {
+      return true;
+    }
+
+    return Boolean(element?.isContentEditable);
+  };
+
   document.addEventListener("keydown", (event) => {
     if (!event.isTrusted) {
       return false;
     }
 
-    if (event?.target) {
-      const element = event.target as HTMLInputElement;
-      if (element?.tagName?.toLowerCase() === "input") {
-        return;
-      }
+    if (isUserInEditingMode({ event })) {
+      return;
     }
 
     const chosenHintKey = keyCodeToHintKey(event.code);

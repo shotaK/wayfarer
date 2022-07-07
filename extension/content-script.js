@@ -20,6 +20,20 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     var ENGLISH_LETTERS_AMOUNT = ALPHABET_ENGLISH_KEY_OPTIMIZED.length;
     var SINGLE_DIGIT_NUM_AMOUNT = 10;
     var MAX_ALPHA_HINT_AMOUNT = 676;
+    var editableInputList = [
+        "text",
+        "email",
+        "number",
+        "search",
+        "tel",
+        "url",
+        "password",
+        "date",
+        "datetime-local",
+        "month",
+        "week",
+        "range",
+    ];
     var classify = function (className) { return ".".concat(className); };
     var createHintMarkerContainer = function () {
         var hintMarkerContainer = document.createElement("div");
@@ -81,7 +95,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             if (pointContainer === elem)
                 return true;
         } while ((pointContainer = pointContainer === null || pointContainer === void 0 ? void 0 : pointContainer.parentNode));
-        return true;
+        return false;
     }
     var createHintMarker = function (_a) {
         var markKey = _a.markKey, topPos = _a.topPos, leftPos = _a.leftPos;
@@ -265,20 +279,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             input.click();
             return;
         }
-        if ([
-            "text",
-            "email",
-            "number",
-            "search",
-            "tel",
-            "url",
-            "password",
-            "date",
-            "datetime-local",
-            "month",
-            "week",
-            "range",
-        ].includes(type)) {
+        if (editableInputList.includes(type)) {
             setTimeout(function () {
                 input.focus();
             }, 0);
@@ -343,16 +344,27 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
         return keyCode.toLowerCase();
     };
+    var isUserInEditingMode = function (_a) {
+        var _b;
+        var event = _a.event;
+        var element = event === null || event === void 0 ? void 0 : event.target;
+        var tagName = (_b = element === null || element === void 0 ? void 0 : element.tagName) === null || _b === void 0 ? void 0 : _b.toLowerCase();
+        if (tagName === "input") {
+            if (editableInputList.includes(element === null || element === void 0 ? void 0 : element.type)) {
+                return true;
+            }
+        }
+        if (tagName === "textarea") {
+            return true;
+        }
+        return Boolean(element === null || element === void 0 ? void 0 : element.isContentEditable);
+    };
     document.addEventListener("keydown", function (event) {
-        var _a;
         if (!event.isTrusted) {
             return false;
         }
-        if (event === null || event === void 0 ? void 0 : event.target) {
-            var element = event.target;
-            if (((_a = element === null || element === void 0 ? void 0 : element.tagName) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === "input") {
-                return;
-            }
+        if (isUserInEditingMode({ event: event })) {
+            return;
         }
         var chosenHintKey = keyCodeToHintKey(event.code);
         if (["ShiftLeft", "ShiftRight"].includes(event.code) || event.ctrlKey) {
