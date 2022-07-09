@@ -8,8 +8,15 @@
   font-weight: bold;
   text-transform: uppercase;
   color: #000;
-  background: #fbbf24;
   border: 1px dashed #292524;
   border-radius: 2px;
   z-index: 999999;
+}
+
+.wayfarer-hint-marker--default {
+  background: #fbbf24;
+}
+
+.wayfarer-hint-marker--focusable {
+  background: #a3e635;
 }

@@ -14,8 +14,11 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     var activatedHintsSuites = [];
     var HINT_MARKER_CONTAINER_CLASSNAME = "wayfarer-hint-marker-container";
     var HINT_MARKER_CLASSNAME = "wayfarer-hint-marker";
+    var HINT_MARKER_CLASSNAME_DEFAULT = "wayfarer-hint-marker--default";
+    var HINT_MARKER_CLASSNAME_FOCUSABLE = "wayfarer-hint-marker--focusable";
     var HINT_MARKER_CLASSNAME_PREFIX = "wayfarer-hint-marker-prefix";
     var HINT_MARKER_CLASSNAME_POSTFIX = "wayfarer-hint-marker-postfix";
+    var lastHoveredElement = undefined;
     var ALPHABET_ENGLISH_KEY_OPTIMIZED = "abcdehijklmnopqrsuvwxyztgf";
     var ENGLISH_LETTERS_AMOUNT = ALPHABET_ENGLISH_KEY_OPTIMIZED.length;
     var SINGLE_DIGIT_NUM_AMOUNT = 10;
@@ -57,7 +60,254 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         hintMarkerKey.innerText = key;
         return hintMarkerKey;
     };
+    function isElement(node) {
+        return node.nodeType === 1;
+    }
+    function isTextNode(node) {
+        return node.nodeType === 3;
+    }
+    function isDocument(node) {
+        return node.nodeType === 9;
+    }
+    function isInputElement(element) {
+        return element.tagName === "INPUT";
+    }
     function isVisible(elem) {
+        var defaultView = elem.ownerDocument.defaultView;
+        if (!defaultView) {
+            throw new Error("cannot check visibility of non attached element");
+        }
+        var window = defaultView; // retype as non-null for use in closures
+        var isJSDOM = window.navigator.userAgent.match(/jsdom/i);
+        function getOpacity(elem) {
+            // By default the element is opaque.
+            var elemOpacity = 1;
+            var opacityStyle = window.getComputedStyle(elem).opacity;
+            if (opacityStyle) {
+                elemOpacity = Number(opacityStyle);
+            }
+            // Let's apply the parent opacity to the element.
+            var parentElement = elem.parentElement;
+            if (parentElement) {
+                elemOpacity = elemOpacity * getOpacity(parentElement);
+            }
+            return elemOpacity;
+        }
+        function getOverflowState(elem) {
+            var region = elem.getBoundingClientRect();
+            var ownerDoc = elem.ownerDocument;
+            var htmlElem = ownerDoc.documentElement;
+            var bodyElem = ownerDoc.body;
+            var htmlOverflowStyle = window.getComputedStyle(htmlElem).overflow;
+            var treatAsFixedPosition;
+            // Return the closest ancestor that the given element may overflow.
+            function getOverflowParent(e) {
+                var position = window.getComputedStyle(e).position;
+                if (position == "fixed") {
+                    treatAsFixedPosition = true;
+                    // Fixed-position element may only overflow the viewport.
+                    return e == htmlElem ? null : htmlElem;
+                }
+                else {
+                    var parent_1 = e.parentElement;
+                    while (parent_1 && !canBeOverflowed(parent_1)) {
+                        parent_1 = parent_1.parentElement;
+                    }
+                    return parent_1;
+                }
+                function canBeOverflowed(container) {
+                    // The HTML element can always be overflowed.
+                    if (container == htmlElem) {
+                        return true;
+                    }
+                    // An element cannot overflow an element with an inline display style.
+                    var containerDisplay = window.getComputedStyle(container).display;
+                    if (containerDisplay.match(/^inline/)) {
+                        return false;
+                    }
+                    // An absolute-positioned element cannot overflow a static-positioned one.
+                    if (position == "absolute" &&
+                        window.getComputedStyle(container).position == "static") {
+                        return false;
+                    }
+                    return true;
+                }
+            }
+            // Return the x and y overflow styles for the given element.
+            function getOverflowStyles(e) {
+                // When the <html> element has an overflow style of 'visible', it assumes
+                // the overflow style of the body, and the body is really overflow:visible.
+                var overflowElem = e;
+                if (htmlOverflowStyle == "visible") {
+                    // Note: bodyElem will be null/undefined in SVG documents.
+                    if (e == htmlElem && bodyElem) {
+                        overflowElem = bodyElem;
+                    }
+                    else if (e == bodyElem) {
+                        return { x: "visible", y: "visible" };
+                    }
+                }
+                var overflow = {
+                    x: window.getComputedStyle(overflowElem).overflowX,
+                    y: window.getComputedStyle(overflowElem).overflowY
+                };
+                // The <html> element cannot have a genuine 'visible' overflow style,
+                // because the viewport can't expand; 'visible' is really 'auto'.
+                if (e == htmlElem) {
+                    overflow.x = overflow.x == "visible" ? "auto" : overflow.x;
+                    overflow.y = overflow.y == "visible" ? "auto" : overflow.y;
+                }
+                return overflow;
+            }
+            // Returns the scroll offset of the given element.
+            function getScroll(e) {
+                var _a, _b;
+                if (isDocument(e)) {
+                    return {
+                        x: ((_a = e.defaultView) === null || _a === void 0 ? void 0 : _a.pageXOffset) || 0,
+                        y: ((_b = e.defaultView) === null || _b === void 0 ? void 0 : _b.pageYOffset) || 0
+                    };
+                }
+                else {
+                    return { x: e.scrollLeft, y: e.scrollTop };
+                }
+            }
+            // Check if the element overflows any ancestor element.
+            for (var container = getOverflowParent(elem); !!container; container = getOverflowParent(container)) {
+                var containerOverflow = getOverflowStyles(container);
+                // If the container has overflow:visible, the element cannot overflow it.
+                if (containerOverflow.x == "visible" &&
+                    containerOverflow.y == "visible") {
+                    continue;
+                }
+                var containerRect = container.getBoundingClientRect();
+                // Zero-sized containers without overflow:visible hide all descendants.
+                if (containerRect.width == 0 || containerRect.height == 0) {
+                    return "hidden";
+                }
+                // Check "underflow": if an element is to the left or above the container
+                var underflowsX = region.right < containerRect.left;
+                var underflowsY = region.bottom < containerRect.top;
+                if ((underflowsX && containerOverflow.x == "hidden") ||
+                    (underflowsY && containerOverflow.y == "hidden")) {
+                    return "hidden";
+                }
+                else if ((underflowsX && containerOverflow.x != "visible") ||
+                    (underflowsY && containerOverflow.y != "visible")) {
+                    // When the element is positioned to the left or above a container, we
+                    // have to distinguish between the element being completely outside the
+                    // container and merely scrolled out of view within the container.
+                    var containerScroll = getScroll(container);
+                    var unscrollableX = region.right < containerRect.left - containerScroll.x;
+                    var unscrollableY = region.bottom < containerRect.top - containerScroll.y;
+                    if ((unscrollableX && containerOverflow.x != "visible") ||
+                        (unscrollableY && containerOverflow.x != "visible")) {
+                        return "hidden";
+                    }
+                    var containerState = getOverflowState(container);
+                    return containerState == "hidden" ? "hidden" : "scroll";
+                }
+                // Check "overflow": if an element is to the right or below a container
+                var overflowsX = region.left >= containerRect.left + containerRect.width;
+                var overflowsY = region.top >= containerRect.top + containerRect.height;
+                if ((overflowsX && containerOverflow.x == "hidden") ||
+                    (overflowsY && containerOverflow.y == "hidden")) {
+                    return "hidden";
+                }
+                else if ((overflowsX && containerOverflow.x != "visible") ||
+                    (overflowsY && containerOverflow.y != "visible")) {
+                    // If the element has fixed position and falls outside the scrollable area
+                    // of the document, then it is hidden.
+                    if (treatAsFixedPosition) {
+                        var docScroll = getScroll(container);
+                        if (region.left >= htmlElem.scrollWidth - docScroll.x ||
+                            region.right >= htmlElem.scrollHeight - docScroll.y) {
+                            return "hidden";
+                        }
+                    }
+                    // If the element can be scrolled into view of the parent, it has a scroll
+                    // state; unless the parent itself is entirely hidden by overflow, in
+                    // which it is also hidden by overflow.
+                    var containerState = getOverflowState(container);
+                    return containerState == "hidden" ? "hidden" : "scroll";
+                }
+            }
+            // Does not overflow any ancestor.
+            return "none";
+        }
+        function isDisplayed(e) {
+            if (window.getComputedStyle(e).display == "none") {
+                return false;
+            }
+            var parent = e.parentElement;
+            return !parent || isDisplayed(parent);
+        }
+        function isVisibleInner(elem, ignoreOpacity) {
+            if (ignoreOpacity === void 0) { ignoreOpacity = false; }
+            // By convention, BODY element is always shown: BODY represents the document
+            // and even if there's nothing rendered in there, user can always see there's
+            // the document.
+            if (elem.tagName === "BODY") {
+                return true;
+            }
+            // Option or optgroup is shown iff enclosing select is shown (ignoring the
+            // select's opacity).
+            if (elem.tagName === "OPTION" || elem.tagName === "OPTGROUP") {
+                var select = elem.closest("select");
+                return !!select && isVisibleInner(select, true);
+            }
+            // Any hidden input is not shown.
+            if (isInputElement(elem) && elem.type.toLowerCase() == "hidden") {
+                return false;
+            }
+            // Any NOSCRIPT element is not shown.
+            if (elem.tagName === "NOSCRIPT") {
+                return false;
+            }
+            // Any element with hidden/collapsed visibility is not shown.
+            var visibility = window.getComputedStyle(elem).visibility;
+            if (visibility == "collapse" || visibility == "hidden") {
+                return false;
+            }
+            if (!isDisplayed(elem)) {
+                return false;
+            }
+            // Any transparent element is not shown.
+            if (!ignoreOpacity && getOpacity(elem) == 0) {
+                return false;
+            }
+            // Any element without positive size dimensions is not shown.
+            function positiveSize(e) {
+                var rect = e.getBoundingClientRect();
+                if (rect.height > 0 && rect.width > 0) {
+                    return true;
+                }
+                // Zero-sized elements should still be considered to have positive size
+                // if they have a child element or text node with positive size, unless
+                // the element has an 'overflow' style of 'hidden'.
+                return (window.getComputedStyle(e).overflow != "hidden" &&
+                    Array.from(e.childNodes).some(function (n) {
+                        return isTextNode(n) || (isElement(n) && positiveSize(n));
+                    }));
+            }
+            if (!isJSDOM && !positiveSize(elem)) {
+                return false;
+            }
+            // Elements that are hidden by overflow are not shown.
+            function hiddenByOverflow(e) {
+                return (getOverflowState(e) == "hidden" &&
+                    Array.from(e.childNodes).every(function (n) {
+                        return !isElement(n) || hiddenByOverflow(n) || !positiveSize(n);
+                    }));
+            }
+            if (!isJSDOM && hiddenByOverflow(elem)) {
+                return false;
+            }
+            return true;
+        }
+        return isVisibleInner(elem);
+    }
+    function elementVisible(elem) {
         if (!(elem instanceof Element))
             throw Error("DomUtil: elem is not an element.");
         var style = getComputedStyle(elem);
@@ -90,16 +340,36 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             (document.documentElement.clientHeight || window.innerHeight)) {
             return false;
         }
-        var pointContainer = document.elementFromPoint(elemCenter.x, elemCenter.y);
+        var _a = getCoords(elem), left = _a.left, top = _a.top, right = _a.right, bottom = _a.bottom;
+        var pointCenterContainer = document.elementFromPoint(elemCenter.x, elemCenter.y);
+        var pointTopLeftContainer = document.elementFromPoint(left, top);
+        var pointTopRightContainer = document.elementFromPoint(right, top);
+        var pointBottomLeftContainer = document.elementFromPoint(left, bottom);
+        var pointBottomRightContainer = document.elementFromPoint(right, bottom);
         do {
-            if (pointContainer === elem)
+            if ([
+                pointCenterContainer,
+                pointBottomRightContainer,
+                pointTopRightContainer,
+                pointTopLeftContainer,
+                pointBottomLeftContainer,
+            ].includes(elem))
                 return true;
-        } while ((pointContainer = pointContainer === null || pointContainer === void 0 ? void 0 : pointContainer.parentNode));
+        } while ((pointCenterContainer = pointCenterContainer === null || pointCenterContainer === void 0 ? void 0 : pointCenterContainer.parentNode));
         return false;
     }
     var createHintMarker = function (_a) {
-        var markKey = _a.markKey, topPos = _a.topPos, leftPos = _a.leftPos;
+        var markKey = _a.markKey, topPos = _a.topPos, leftPos = _a.leftPos, element = _a.element;
         var hintMarker = document.createElement("div");
+        if ((element instanceof HTMLInputElement &&
+            editableInputList.includes(element === null || element === void 0 ? void 0 : element.type)) ||
+            element instanceof HTMLTextAreaElement ||
+            ((element === null || element === void 0 ? void 0 : element.isContentEditable) && element instanceof HTMLSelectElement)) {
+            hintMarker.classList.add(HINT_MARKER_CLASSNAME_FOCUSABLE);
+        }
+        else {
+            hintMarker.classList.add(HINT_MARKER_CLASSNAME_DEFAULT);
+        }
         hintMarker.classList.add(HINT_MARKER_CLASSNAME);
         var _b = markKey.split(""), prefixKey = _b[0], postfixKey = _b[1];
         var prefixElement = createHintMarkerKey({
@@ -129,13 +399,18 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     var getAllActionableElements = function () {
         return Array.from(document.querySelectorAll("a, button, input, select, textarea"))
             .filter(isVisible)
+            .filter(elementVisible)
             .filter(isElementInViewport);
     };
     var getCoords = function (elem) {
         var rect = elem.getBoundingClientRect();
+        var left = rect.left + window.scrollX;
+        var top = rect.top + window.scrollY;
         return {
-            left: rect.left + window.scrollX,
-            top: rect.top + window.scrollY
+            left: left,
+            top: top,
+            right: left + rect.width,
+            bottom: top + rect.height
         };
     };
     var getAlphaKeys = function (_a) {
@@ -196,7 +471,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 hintMark: createHintMarker({
                     markKey: hintKeys[index],
                     topPos: coords.top,
-                    leftPos: coords.left
+                    leftPos: coords.left,
+                    element: actionableElement
                 })
             };
         })
@@ -212,18 +488,69 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return hintMarkerContainer.appendChild(hintMark);
         });
     };
+    var simulateMouseEvent = function (event, element, modifiers) {
+        if (modifiers == null) {
+            modifiers = {};
+        }
+        if (event === "mouseout") {
+            if (element == null) {
+                element = lastHoveredElement;
+            }
+            lastHoveredElement = undefined;
+            if (element == null) {
+                return;
+            }
+        }
+        else if (event === "mouseover") {
+            simulateMouseEvent("mouseout", undefined, modifiers);
+            lastHoveredElement = element;
+        }
+        var mouseEvent = new MouseEvent(event, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            view: window,
+            detail: 1,
+            ctrlKey: modifiers.ctrlKey,
+            altKey: modifiers.altKey,
+            shiftKey: modifiers.shiftKey,
+            metaKey: modifiers.metaKey
+        });
+        return element.dispatchEvent(mouseEvent);
+    };
+    var simulateClick = function (element, modifiers) {
+        if (modifiers === void 0) { modifiers = {}; }
+        if (modifiers == null) {
+            modifiers = {};
+        }
+        var eventSequence = ["mouseover", "mousedown", "mouseup", "click"];
+        var result = [];
+        for (var _i = 0, eventSequence_1 = eventSequence; _i < eventSequence_1.length; _i++) {
+            var event_1 = eventSequence_1[_i];
+            var defaultActionShouldTrigger = simulateMouseEvent(event_1, element, modifiers);
+            result.push(defaultActionShouldTrigger);
+        }
+        return result;
+    };
     var openHyperlink = function (_a) {
-        var _b;
         var hyperlink = _a.hyperlink, event = _a.event;
         var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
         var isShift = event.shiftKey;
-        if (!href || href.startsWith("javascript") || href.startsWith("#")) {
-            hyperlink.click();
-            return;
-        }
-        if (href) {
-            (_b = window.open(href, isShift ? "_blank" : "_self")) === null || _b === void 0 ? void 0 : _b.focus();
-        }
+        simulateClick(hyperlink);
+        // if (!href || href.startsWith("javascript") || href.startsWith("#")) {
+        //   hyperlink.click();
+        //   return;
+        // }
+        //
+        // if (typeof hyperlink?.onclick == "function") {
+        //   // @ts-ignore
+        //   // hyperlink?.onclick?.apply(hyperlink);
+        //   return;
+        // }
+        //
+        // if (href) {
+        //   window.open(href, isShift ? "_blank" : "_self")?.focus();
+        // }
     };
     var clickButton = function (_a) {
         var button = _a.button;
@@ -359,6 +686,9 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
         return Boolean(element === null || element === void 0 ? void 0 : element.isContentEditable);
     };
+    document.addEventListener("click", function (event) {
+        dismissHints();
+    });
     document.addEventListener("keydown", function (event) {
         if (!event.isTrusted) {
             return false;
