@@ -519,7 +519,7 @@
   const getAllActionableElements = () => {
     return Array.from(
       document.querySelectorAll<HTMLElement>(
-        "a, button, input, select, textarea"
+        'a, button, input, select, textarea, [role="button"]'
       )
     )
       .filter(isVisible)
@@ -669,6 +669,7 @@
       composed: true,
       view: window,
       detail: 1,
+      ctrlKey: isShift,
     });
 
     if (element) {
@@ -678,10 +679,10 @@
 
   const simulateClick = ({
     element,
-    isShift,
+    isShift = false,
   }: {
     element: HTMLElement;
-    isShift: boolean;
+    isShift?: boolean;
   }) => {
     const eventSequence = ["mouseover", "mousedown", "mouseup", "click"];
     const result = [];
@@ -704,14 +705,13 @@
     hyperlink: HTMLAnchorElement;
     event: KeyboardEvent;
   }) => {
-    const href = hyperlink?.href;
     const isShift = event.shiftKey;
 
     simulateClick({ element: hyperlink, isShift: isShift });
   };
 
-  const clickButton = ({ button }: { button: HTMLButtonElement }) => {
-    button.click();
+  const clickButton = ({ button }: { button: HTMLElement }) => {
+    simulateClick({ element: button });
   };
 
   const dismissHints = () => {
@@ -803,7 +803,10 @@
         hyperlink: element,
         event,
       });
-    } else if (element instanceof HTMLButtonElement) {
+    } else if (
+      element instanceof HTMLButtonElement ||
+      element.getAttribute("role") === "button"
+    ) {
       clickButton({ button: element });
     } else if (element instanceof HTMLInputElement) {
       handleInputAction({ input: element });

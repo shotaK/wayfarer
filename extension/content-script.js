@@ -409,7 +409,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             rect.right <= (window.innerWidth || document.documentElement.clientWidth));
     };
     var getAllActionableElements = function () {
-        return Array.from(document.querySelectorAll("a, button, input, select, textarea"))
+        return Array.from(document.querySelectorAll('a, button, input, select, textarea, [role="button"]'))
             .filter(isVisible)
             .filter(elementVisible)
             .filter(isElementInViewport);
@@ -504,14 +504,15 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             cancelable: true,
             composed: true,
             view: window,
-            detail: 1
+            detail: 1,
+            ctrlKey: isShift
         });
         if (element) {
             return element.dispatchEvent(mouseEvent);
         }
     };
     var simulateClick = function (_a) {
-        var element = _a.element, isShift = _a.isShift;
+        var element = _a.element, _b = _a.isShift, isShift = _b === void 0 ? false : _b;
         var eventSequence = ["mouseover", "mousedown", "mouseup", "click"];
         var result = [];
         for (var _i = 0, eventSequence_1 = eventSequence; _i < eventSequence_1.length; _i++) {
@@ -527,13 +528,12 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     };
     var openHyperlink = function (_a) {
         var hyperlink = _a.hyperlink, event = _a.event;
-        var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
         var isShift = event.shiftKey;
         simulateClick({ element: hyperlink, isShift: isShift });
     };
     var clickButton = function (_a) {
         var button = _a.button;
-        button.click();
+        simulateClick({ element: button });
     };
     var dismissHints = function () {
         removeAllHintMarkerContainer();
@@ -607,7 +607,8 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
                 event: event
             });
         }
-        else if (element instanceof HTMLButtonElement) {
+        else if (element instanceof HTMLButtonElement ||
+            element.getAttribute("role") === "button") {
             clickButton({ button: element });
         }
         else if (element instanceof HTMLInputElement) {
