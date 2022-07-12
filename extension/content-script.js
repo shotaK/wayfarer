@@ -18,7 +18,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     var HINT_MARKER_CLASSNAME_FOCUSABLE = "wayfarer-hint-marker--focusable";
     var HINT_MARKER_CLASSNAME_PREFIX = "wayfarer-hint-marker-prefix";
     var HINT_MARKER_CLASSNAME_POSTFIX = "wayfarer-hint-marker-postfix";
-    var lastHoveredElement = undefined;
     var ALPHABET_ENGLISH_KEY_OPTIMIZED = "abcdehijklmnopqrsuvwxyztgf";
     var ENGLISH_LETTERS_AMOUNT = ALPHABET_ENGLISH_KEY_OPTIMIZED.length;
     var SINGLE_DIGIT_NUM_AMOUNT = 10;
@@ -307,6 +306,17 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         }
         return isVisibleInner(elem);
     }
+    var getCoords = function (elem) {
+        var rect = elem.getBoundingClientRect();
+        var left = rect.left + window.scrollX;
+        var top = rect.top + window.scrollY;
+        return {
+            left: left,
+            top: top,
+            right: left + rect.width,
+            bottom: top + rect.height
+        };
+    };
     function elementVisible(elem) {
         if (!(elem instanceof Element))
             throw Error("DomUtil: elem is not an element.");
@@ -325,8 +335,10 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return false;
         }
         var elemCenter = {
-            x: elem.getBoundingClientRect().left + elem.offsetWidth / 2,
-            y: elem.getBoundingClientRect().top + elem.offsetHeight / 2
+            x: elem.getBoundingClientRect().left +
+                elem.getBoundingClientRect().width / 2,
+            y: elem.getBoundingClientRect().top +
+                elem.getBoundingClientRect().height / 2
         };
         if (elemCenter.x < 0) {
             return false;
@@ -401,17 +413,6 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             .filter(isVisible)
             .filter(elementVisible)
             .filter(isElementInViewport);
-    };
-    var getCoords = function (elem) {
-        var rect = elem.getBoundingClientRect();
-        var left = rect.left + window.scrollX;
-        var top = rect.top + window.scrollY;
-        return {
-            left: left,
-            top: top,
-            right: left + rect.width,
-            bottom: top + rect.height
-        };
     };
     var getAlphaKeys = function (_a) {
         var _b = _a.start, start = _b === void 0 ? 0 : _b, _c = _a.end, end = _c === void 0 ? ENGLISH_LETTERS_AMOUNT : _c;
@@ -488,46 +489,38 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
             return hintMarkerContainer.appendChild(hintMark);
         });
     };
-    var simulateMouseEvent = function (event, element, modifiers) {
-        if (modifiers == null) {
-            modifiers = {};
-        }
+    var simulateMouseEvent = function (_a) {
+        var event = _a.event, element = _a.element, isShift = _a.isShift;
         if (event === "mouseout") {
-            if (element == null) {
-                element = lastHoveredElement;
-            }
-            lastHoveredElement = undefined;
             if (element == null) {
                 return;
             }
         }
         else if (event === "mouseover") {
-            simulateMouseEvent("mouseout", undefined, modifiers);
-            lastHoveredElement = element;
+            simulateMouseEvent({ event: "mouseout", element: undefined, isShift: isShift });
         }
         var mouseEvent = new MouseEvent(event, {
             bubbles: true,
             cancelable: true,
             composed: true,
             view: window,
-            detail: 1,
-            ctrlKey: modifiers.ctrlKey,
-            altKey: modifiers.altKey,
-            shiftKey: modifiers.shiftKey,
-            metaKey: modifiers.metaKey
+            detail: 1
         });
-        return element.dispatchEvent(mouseEvent);
-    };
-    var simulateClick = function (element, modifiers) {
-        if (modifiers === void 0) { modifiers = {}; }
-        if (modifiers == null) {
-            modifiers = {};
+        if (element) {
+            return element.dispatchEvent(mouseEvent);
         }
+    };
+    var simulateClick = function (_a) {
+        var element = _a.element, isShift = _a.isShift;
         var eventSequence = ["mouseover", "mousedown", "mouseup", "click"];
         var result = [];
         for (var _i = 0, eventSequence_1 = eventSequence; _i < eventSequence_1.length; _i++) {
             var event_1 = eventSequence_1[_i];
-            var defaultActionShouldTrigger = simulateMouseEvent(event_1, element, modifiers);
+            var defaultActionShouldTrigger = simulateMouseEvent({
+                event: event_1,
+                element: element,
+                isShift: isShift
+            });
             result.push(defaultActionShouldTrigger);
         }
         return result;
@@ -536,21 +529,7 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
         var hyperlink = _a.hyperlink, event = _a.event;
         var href = hyperlink === null || hyperlink === void 0 ? void 0 : hyperlink.href;
         var isShift = event.shiftKey;
-        simulateClick(hyperlink);
-        // if (!href || href.startsWith("javascript") || href.startsWith("#")) {
-        //   hyperlink.click();
-        //   return;
-        // }
-        //
-        // if (typeof hyperlink?.onclick == "function") {
-        //   // @ts-ignore
-        //   // hyperlink?.onclick?.apply(hyperlink);
-        //   return;
-        // }
-        //
-        // if (href) {
-        //   window.open(href, isShift ? "_blank" : "_self")?.focus();
-        // }
+        simulateClick({ element: hyperlink, isShift: isShift });
     };
     var clickButton = function (_a) {
         var button = _a.button;

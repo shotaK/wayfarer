@@ -15,7 +15,6 @@
   const HINT_MARKER_CLASSNAME_PREFIX = "wayfarer-hint-marker-prefix";
   const HINT_MARKER_CLASSNAME_POSTFIX = "wayfarer-hint-marker-postfix";
   type OverflowState = "hidden" | "scroll" | "none";
-  let lastHoveredElement = undefined;
 
   const ALPHABET_ENGLISH_KEY_OPTIMIZED = "abcdehijklmnopqrsuvwxyztgf";
   const ENGLISH_LETTERS_AMOUNT = ALPHABET_ENGLISH_KEY_OPTIMIZED.length;
@@ -370,6 +369,19 @@
     return isVisibleInner(elem);
   }
 
+  const getCoords = (elem: HTMLElement) => {
+    const rect = elem.getBoundingClientRect();
+    const left = rect.left + window.scrollX;
+    const top = rect.top + window.scrollY;
+
+    return {
+      left,
+      top,
+      right: left + rect.width,
+      bottom: top + rect.height,
+    };
+  };
+
   function elementVisible(elem: HTMLElement) {
     if (!(elem instanceof Element))
       throw Error("DomUtil: elem is not an element.");
@@ -387,8 +399,12 @@
       return false;
     }
     const elemCenter = {
-      x: elem.getBoundingClientRect().left + elem.offsetWidth / 2,
-      y: elem.getBoundingClientRect().top + elem.offsetHeight / 2,
+      x:
+        elem.getBoundingClientRect().left +
+        elem.getBoundingClientRect().width / 2,
+      y:
+        elem.getBoundingClientRect().top +
+        elem.getBoundingClientRect().height / 2,
     };
     if (elemCenter.x < 0) {
       return false;
@@ -511,19 +527,6 @@
       .filter(isElementInViewport);
   };
 
-  const getCoords = (elem: HTMLElement) => {
-    const rect = elem.getBoundingClientRect();
-    const left = rect.left + window.scrollX;
-    const top = rect.top + window.scrollY;
-
-    return {
-      left,
-      top,
-      right: left + rect.width,
-      bottom: top + rect.height,
-    };
-  };
-
   const getAlphaKeys = ({
     start = 0,
     end = ENGLISH_LETTERS_AMOUNT,
@@ -643,21 +646,21 @@
     );
   };
 
-  const simulateMouseEvent = (event, element, modifiers) => {
-    if (modifiers == null) {
-      modifiers = {};
-    }
+  const simulateMouseEvent = ({
+    event,
+    element,
+    isShift,
+  }: {
+    event: string;
+    element: HTMLElement | undefined;
+    isShift: boolean;
+  }) => {
     if (event === "mouseout") {
-      if (element == null) {
-        element = lastHoveredElement;
-      }
-      lastHoveredElement = undefined;
       if (element == null) {
         return;
       }
     } else if (event === "mouseover") {
-      simulateMouseEvent("mouseout", undefined, modifiers);
-      lastHoveredElement = element;
+      simulateMouseEvent({ event: "mouseout", element: undefined, isShift });
     }
 
     const mouseEvent = new MouseEvent(event, {
@@ -666,26 +669,28 @@
       composed: true,
       view: window,
       detail: 1,
-      ctrlKey: modifiers.ctrlKey,
-      altKey: modifiers.altKey,
-      shiftKey: modifiers.shiftKey,
-      metaKey: modifiers.metaKey,
     });
-    return element.dispatchEvent(mouseEvent);
+
+    if (element) {
+      return element.dispatchEvent(mouseEvent);
+    }
   };
 
-  const simulateClick = (element, modifiers = {}) => {
-    if (modifiers == null) {
-      modifiers = {};
-    }
+  const simulateClick = ({
+    element,
+    isShift,
+  }: {
+    element: HTMLElement;
+    isShift: boolean;
+  }) => {
     const eventSequence = ["mouseover", "mousedown", "mouseup", "click"];
     const result = [];
     for (let event of eventSequence) {
-      const defaultActionShouldTrigger = simulateMouseEvent(
+      const defaultActionShouldTrigger = simulateMouseEvent({
         event,
         element,
-        modifiers
-      );
+        isShift,
+      });
 
       result.push(defaultActionShouldTrigger);
     }
@@ -702,22 +707,7 @@
     const href = hyperlink?.href;
     const isShift = event.shiftKey;
 
-    simulateClick(hyperlink);
-
-    // if (!href || href.startsWith("javascript") || href.startsWith("#")) {
-    //   hyperlink.click();
-    //   return;
-    // }
-    //
-    // if (typeof hyperlink?.onclick == "function") {
-    //   // @ts-ignore
-    //   // hyperlink?.onclick?.apply(hyperlink);
-    //   return;
-    // }
-    //
-    // if (href) {
-    //   window.open(href, isShift ? "_blank" : "_self")?.focus();
-    // }
+    simulateClick({ element: hyperlink, isShift: isShift });
   };
 
   const clickButton = ({ button }: { button: HTMLButtonElement }) => {
