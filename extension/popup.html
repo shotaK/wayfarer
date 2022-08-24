@@ -3,10 +3,255 @@
   <head>
     <meta charset="UTF-8" />
     <title>Wayfarer</title>
+
+    <style>
+      /* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+      html,
+      body,
+      div,
+      span,
+      applet,
+      object,
+      iframe,
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      p,
+      blockquote,
+      pre,
+      a,
+      abbr,
+      acronym,
+      address,
+      big,
+      cite,
+      code,
+      del,
+      dfn,
+      em,
+      img,
+      ins,
+      kbd,
+      q,
+      s,
+      samp,
+      small,
+      strike,
+      strong,
+      sub,
+      sup,
+      tt,
+      var,
+      b,
+      u,
+      i,
+      center,
+      dl,
+      dt,
+      dd,
+      ol,
+      ul,
+      li,
+      fieldset,
+      form,
+      label,
+      legend,
+      table,
+      caption,
+      tbody,
+      tfoot,
+      thead,
+      tr,
+      th,
+      td,
+      article,
+      aside,
+      canvas,
+      details,
+      embed,
+      figure,
+      figcaption,
+      footer,
+      header,
+      hgroup,
+      menu,
+      nav,
+      output,
+      ruby,
+      section,
+      summary,
+      time,
+      mark,
+      audio,
+      video {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        font-size: 100%;
+        font: inherit;
+        vertical-align: baseline;
+      }
+      /* HTML5 display-role reset for older browsers */
+      article,
+      aside,
+      details,
+      figcaption,
+      figure,
+      footer,
+      header,
+      hgroup,
+      menu,
+      nav,
+      section {
+        display: block;
+      }
+      body {
+        line-height: 1.5;
+      }
+      ol,
+      ul {
+        list-style: none;
+      }
+      blockquote,
+      q {
+        quotes: none;
+      }
+      blockquote:before,
+      blockquote:after,
+      q:before,
+      q:after {
+        content: "";
+        content: none;
+      }
+      table {
+        border-collapse: collapse;
+        border-spacing: 0;
+      }
+    </style>
+
+    <style>
+      html * {
+        font-size: 1em;
+        color: #1d1c1c;
+        font-family: Arial, serif;
+      }
+      kbd {
+        background-color: #eee;
+        border-radius: 3px;
+        border: 1px solid #b4b4b4;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2),
+          0 2px 0 0 rgba(255, 255, 255, 0.7) inset;
+        color: #333;
+        display: inline-block;
+        font-size: 0.85em;
+        font-weight: 700;
+        line-height: 1;
+        padding: 2px 4px;
+        white-space: nowrap;
+      }
+
+      strong {
+        font-weight: bold;
+      }
+
+      .wf-container {
+        width: 24rem;
+        padding: 1.5rem;
+      }
+
+      .wf-header {
+        display: flex;
+        margin-bottom: 24px;
+        align-items: center;
+      }
+
+      .wf-header h1 {
+        font-size: 1.25rem;
+      }
+
+      .wf-header-check-icon {
+        width: 1.5rem;
+        margin-left: 4px;
+      }
+
+      .wf-header-check-icon path {
+        color: #65a30d;
+      }
+
+      .wf-main-section {
+        margin-bottom: 1.3rem;
+      }
+
+      .wf-main-section .wayfarer-hint-marker {
+        position: static;
+        display: inline-block;
+      }
+    </style>
+
+    <link rel="stylesheet" type="text/css" href="./content-style.css" />
   </head>
   <body>
-    <p>
-      Wayfarer extension is activated. Press <kbd>f</kbd> to trigger hint marks
-    </p>
+    <div class="wf-container">
+      <header class="wf-header">
+        <h1><strong>Wayfarer</strong> is activated</h1>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="wf-header-check-icon"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M14.563 9.75a12.014 12.014 0 00-3.427 5.136L9 12.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      </header>
+
+      <main>
+        <div class="wf-main-section">
+          Press <kbd>f</kbd> key to trigger hint marks. Then press the generated
+          hint mark key. For example, press <kbd>h</kbd> key to open a link that
+          is associated with the
+          <div class="wayfarer-hint-marker--default wayfarer-hint-marker">
+            <span class="wayfarer-hint-marker-prefix">H</span>
+          </div>
+          hint mark.
+        </div>
+
+        <div class="wf-main-section">
+          Yellow hint marks
+          <div class="wayfarer-hint-marker--default wayfarer-hint-marker">
+            <span class="wayfarer-hint-marker-prefix">x</span>
+          </div>
+          represent actionable links and buttons.
+        </div>
+
+        <div class="wf-main-section">
+          Green hint marks
+          <div class="wayfarer-hint-marker--focusable wayfarer-hint-marker">
+            <span class="wayfarer-hint-marker-prefix">x</span>
+          </div>
+          represent focusable inputs.
+        </div>
+
+        <div class="wf-main-section">
+          Press <kbd>shift</kbd> +
+          <div class="wayfarer-hint-marker--default wayfarer-hint-marker">
+            <span class="wayfarer-hint-marker-prefix">x</span>
+          </div>
+          if you would like to open a link in a new tab.
+        </div>
+      </main>
+    </div>
   </body>
 </html>
